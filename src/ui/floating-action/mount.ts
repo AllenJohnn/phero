@@ -14,7 +14,7 @@ const SHADOW_STYLES = `
   position: fixed;
   bottom: 0;
   right: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -28,14 +28,14 @@ const SHADOW_STYLES = `
 .absolute { position: absolute; }
 .bottom-5 { bottom: 1.25rem; }
 .right-5 { right: 1.25rem; }
-.bottom-12 { bottom: 3rem; }
+.bottom-11 { bottom: 2.75rem; }
 .right-0 { right: 0px; }
 .z-50 { z-index: 50; }
-.w-56 { width: 14rem; }
-.w-80 { width: 20rem; }
+.w-52 { width: 13rem; }
+.w-72 { width: 18rem; }
 .w-full { width: 100%; }
-.w-5 { width: 1.25rem; }
-.h-5 { height: 1.25rem; }
+.w-4 { width: 1rem; }
+.h-4 { height: 1rem; }
 .flex { display: flex; }
 .items-center { align-items: center; }
 .items-start { align-items: flex-start; }
@@ -43,65 +43,68 @@ const SHADOW_STYLES = `
 .justify-end { justify-content: flex-end; }
 .justify-center { justify-content: center; }
 .gap-1 { gap: 0.25rem; }
+.gap-1\\.5 { gap: 0.375rem; }
 .gap-2 { gap: 0.5rem; }
 .gap-2\\.5 { gap: 0.625rem; }
 .p-1\\.5 { padding: 0.375rem; }
-.p-4 { padding: 1rem; }
+.p-3\\.5 { padding: 0.875rem; }
 .px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
 .px-2\\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
 .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
 .py-1\\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
 .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
 .pt-2 { padding-top: 0.5rem; }
 .pl-1 { padding-left: 0.25rem; }
 .mb-1 { margin-bottom: 0.25rem; }
-.mb-3 { margin-bottom: 0.75rem; }
+.mb-2\\.5 { margin-bottom: 0.625rem; }
 .mt-0\\.5 { margin-top: 0.125rem; }
-.mt-1 { margin-top: 0.25rem; }
 .rounded-xl { border-radius: 0.75rem; }
 .rounded-lg { border-radius: 0.5rem; }
+.rounded-md { border-radius: 0.375rem; }
 .rounded-full { border-radius: 9999px; }
 .rounded { border-radius: 0.25rem; }
 .border { border-width: 1px; border-style: solid; }
 .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
 .border-t { border-top-width: 1px; border-top-style: solid; }
-.border-zinc-800 { border-color: #27272a; }
-.border-zinc-700 { border-color: #3f3f46; }
-.border-zinc-900 { border-color: #18181b; }
-.border-amber-500\\/30 { border-color: rgba(245, 158, 11, 0.3); }
-.border-emerald-800\\/80 { border-color: rgba(6, 95, 70, 0.8); }
-.border-rose-800\\/80 { border-color: rgba(159, 18, 57, 0.8); }
-.bg-zinc-950 { background-color: #09090b; }
-.bg-zinc-950\\/95 { background-color: rgba(9, 9, 11, 0.95); }
-.bg-zinc-950\\/90 { background-color: rgba(9, 9, 11, 0.9); }
-.bg-zinc-900 { background-color: #18181b; }
-.bg-zinc-800 { background-color: #27272a; }
-.bg-amber-500\\/20 { background-color: rgba(245, 158, 11, 0.2); }
-.bg-emerald-950\\/80 { background-color: rgba(6, 78, 59, 0.8); }
-.bg-rose-950\\/80 { background-color: rgba(136, 19, 55, 0.8); }
-.text-zinc-100 { color: #f4f4f5; }
-.text-zinc-200 { color: #e4e4e7; }
-.text-zinc-300 { color: #d4d4d8; }
-.text-zinc-400 { color: #a1a1aa; }
-.text-zinc-500 { color: #71717a; }
-.text-blue-400 { color: #60a5fa; }
-.text-emerald-400 { color: #34d399; }
-.text-emerald-200 { color: #a7f3d0; }
-.text-amber-400 { color: #fbbf24; }
-.text-amber-300 { color: #fcd34d; }
-.text-rose-400 { color: #fb7185; }
+.border-\\[\\#232326\\] { border-color: #232326; }
+.border-\\[\\#36363A\\] { border-color: #36363a; }
+.border-\\[\\#1E1E22\\] { border-color: #1e1e22; }
+.border-\\[\\#D97706\\]\\/40 { border-color: rgba(217, 119, 6, 0.4); }
+.border-\\[\\#D97706\\]\\/30 { border-color: rgba(217, 119, 6, 0.3); }
+.border-\\[\\#059669\\]\\/60 { border-color: rgba(5, 150, 105, 0.6); }
+.border-\\[\\#E11D48\\]\\/60 { border-color: rgba(225, 29, 72, 0.6); }
+.bg-\\[\\#09090B\\] { background-color: #09090b; }
+.bg-\\[\\#09090B\\]\\/95 { background-color: rgba(9, 9, 11, 0.95); }
+.bg-\\[\\#09090B\\]\\/90 { background-color: rgba(9, 9, 11, 0.9); }
+.bg-\\[\\#111113\\] { background-color: #111113; }
+.bg-\\[\\#18181B\\] { background-color: #18181b; }
+.bg-\\[\\#D97706\\]\\/20 { background-color: rgba(217, 119, 6, 0.2); }
+.bg-\\[\\#D97706\\]\\/30 { background-color: rgba(217, 119, 6, 0.3); }
+.bg-\\[\\#064E3B\\]\\/90 { background-color: rgba(6, 78, 59, 0.9); }
+.bg-\\[\\#881337\\]\\/90 { background-color: rgba(136, 19, 55, 0.9); }
+.text-\\[\\#F4F4F6\\] { color: #f4f4f6; }
+.text-\\[\\#EDEDEF\\] { color: #ededef; }
+.text-\\[\\#A1A1AA\\] { color: #a1a1aa; }
+.text-\\[\\#8A8A93\\] { color: #8a8a93; }
+.text-\\[\\#52525B\\] { color: #52525b; }
+.text-\\[\\#D4D4D8\\] { color: #d4d4d8; }
+.text-\\[\\#3B82F6\\] { color: #3b82f6; }
+.text-\\[\\#10A37F\\] { color: #10a37f; }
+.text-\\[\\#A7F3D0\\] { color: #a7f3d0; }
+.text-\\[\\#D97706\\] { color: #d97706; }
+.text-\\[\\#FBBF24\\] { color: #fbbf24; }
+.text-\\[\\#E11D48\\] { color: #e11d48; }
+.text-\\[\\#FECDD3\\] { color: #fecdd3; }
 .text-rose-300 { color: #fda4af; }
-.text-rose-200 { color: #fecdd3; }
+.text-white { color: #ffffff; }
 .text-xs { font-size: 0.75rem; line-height: 1rem; }
 .text-\\[11px\\] { font-size: 11px; line-height: 14px; }
-.text-\\[10px\\] { font-size: 10px; line-height: 12px; }
 .font-medium { font-weight: 500; }
 .font-semibold { font-weight: 600; }
 .tracking-tight { letter-spacing: -0.025em; }
-.tracking-wider { letter-spacing: 0.05em; }
-.uppercase { text-transform: uppercase; }
-.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3); }
-.shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4); }
+.shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); }
 .backdrop-blur-md { backdrop-filter: blur(12px); }
 .cursor-pointer { cursor: pointer; }
 .select-none { user-select: none; }
@@ -109,8 +112,7 @@ const SHADOW_STYLES = `
 .transition-colors { transition-property: color, background-color, border-color; transition-duration: 150ms; }
 .transition-transform { transition-property: transform; transition-duration: 150ms; }
 .duration-150 { transition-duration: 150ms; }
-.duration-200 { transition-duration: 200ms; }
-.space-y-0\\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.125rem; }
+.space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
 .underline { text-decoration-line: underline; }
 .animate-spin { animation: spin 1s linear infinite; }
 

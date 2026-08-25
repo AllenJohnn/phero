@@ -8,24 +8,44 @@ export default {
     extend: {
       colors: {
         phero: {
-          bg: '#0A0A0B',
-          card: '#121214',
-          border: '#27272A',
-          muted: '#71717A',
+          bg: '#09090B',
+          surface: '#111113',
+          surfaceHover: '#18181B',
+          surfaceActive: '#202024',
+          border: '#232326',
+          borderHover: '#36363A',
+          textPrimary: '#F4F4F6',
+          textSecondary: '#8A8A93',
+          textMuted: '#52525B',
           accent: '#3B82F6',
-          accentHover: '#2563EB',
-          text: '#F4F4F5',
-          subtext: '#A1A1AA'
+          accentSubtle: 'rgba(59, 130, 246, 0.12)',
+        },
+        provider: {
+          chatgpt: '#10A37F',
+          claude: '#D97706',
+          gemini: '#1A73E8',
         }
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          'Helvetica',
+          'Arial',
+          'sans-serif'
+        ],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
       },
       boxShadow: {
-        'phero-subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        'phero-float': '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
-        'phero-glow': '0 0 15px -3px rgba(59, 130, 246, 0.25)'
+        'phero-subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.4)',
+        'phero-card': '0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.4)',
+      },
+      letterSpacing: {
+        tightest: '-0.02em',
+        tighter: '-0.015em',
       }
     },
   },

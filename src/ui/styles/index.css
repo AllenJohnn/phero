@@ -2,11 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #09090b;
-  color: #f4f4f5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  overflow: hidden;
+@layer base {
+  :root {
+    --phero-bg: #09090B;
+    --phero-surface: #111113;
+    --phero-surface-hover: #18181B;
+    --phero-border: #232326;
+    --phero-border-hover: #36363A;
+    --phero-text-primary: #F4F4F6;
+    --phero-text-secondary: #8A8A93;
+    --phero-text-muted: #52525B;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--phero-bg);
+    color: var(--phero-text-primary);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
 }

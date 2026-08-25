@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ProviderId } from '../../core/models/conversation.ts';
-import { PheroLogo, ClaudeLogo, ChatGPTLogo, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.tsx';
+import { PheroLogo, ClaudeLogo, ChatGPTLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.tsx';
 import { Logger } from '../../shared/logger.ts';
 
 export const Popup: React.FC = () => {
@@ -56,7 +56,7 @@ export const Popup: React.FC = () => {
           destinationProvider: dest,
         });
       } catch {
-        // If content script was not ready, dynamically inject and retry
+        // Dynamic re-injection fallback
         if (chrome.scripting) {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -86,36 +86,54 @@ export const Popup: React.FC = () => {
     }
   };
 
-  return (
-    <div className="w-64 bg-zinc-950 text-zinc-100 p-3.5 font-sans antialiased select-none border border-zinc-800 rounded-xl shadow-2xl">
-      {/* Minimal Header */}
-      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-zinc-900">
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-md bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-            <PheroLogo size={12} />
-          </div>
-          <span className="text-xs font-bold tracking-tight text-white">PHERO</span>
+  const getProviderBadge = () => {
+    if (providerId === 'chatgpt') {
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#141416] border border-[#232326] text-[11px] text-[#A1A1AA] font-medium tracking-tight">
+          <span>ChatGPT</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#10A37F]" />
         </div>
-        {providerId && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 font-mono">
-            {providerId === 'chatgpt' ? 'ChatGPT' : 'Claude'}
+      );
+    }
+    if (providerId === 'claude') {
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#141416] border border-[#232326] text-[11px] text-[#A1A1AA] font-medium tracking-tight">
+          <span>Claude</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="w-[260px] bg-[#09090B] text-[#F4F4F6] p-3.5 font-sans antialiased select-none border border-[#232326] rounded-xl shadow-2xl">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1E1E22]">
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-center text-[#3B82F6]">
+            <PheroLogo size={16} />
+          </div>
+          <span className="text-[13px] font-bold tracking-tight text-[#F4F4F6]">
+            PHERO
           </span>
-        )}
+        </div>
+        {getProviderBadge()}
       </div>
 
-      {/* Body */}
+      {/* Main Container */}
       {loading ? (
-        <div className="py-4 flex items-center justify-center text-zinc-500 gap-2 text-xs">
-          <SpinnerIcon size={13} />
-          <span>Detecting chat…</span>
+        <div className="py-4 flex items-center justify-center text-[#71717A] gap-2 text-xs">
+          <SpinnerIcon size={13} className="text-[#3B82F6]" />
+          <span>Detecting workspace…</span>
         </div>
       ) : !providerId ? (
-        <div className="py-3 text-center text-xs text-zinc-400">
+        <div className="py-3 px-1 text-center text-xs text-[#8A8A93] leading-relaxed">
           Open a ChatGPT or Claude tab to carry it forward.
         </div>
       ) : (
         <div className="space-y-1.5">
-          <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-0.5">
+          <div className="text-[11px] font-medium text-[#8A8A93] px-0.5 mb-1">
             Continue in
           </div>
 
@@ -123,20 +141,25 @@ export const Popup: React.FC = () => {
             <button
               onClick={() => handleTriggerHandoff('claude')}
               disabled={transferring}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 hover:bg-zinc-850 text-xs font-semibold text-zinc-200 transition-all cursor-pointer group"
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
             >
-              <div className="flex items-center gap-2">
-                <ClaudeLogo size={14} />
-                <span>Claude</span>
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-4 h-4">
+                  <ClaudeLogo size={15} />
+                </div>
+                <span className="text-xs font-medium text-[#F4F4F6]">
+                  Claude
+                </span>
               </div>
               {transferring ? (
-                <SpinnerIcon size={12} className="text-amber-400" />
+                <SpinnerIcon size={13} className="text-[#D97706]" />
               ) : transferSuccess ? (
-                <CheckIcon size={12} className="text-emerald-400" />
+                <CheckIcon size={13} className="text-[#10A37F]" />
               ) : (
-                <span className="text-zinc-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all">
-                  →
-                </span>
+                <TransitArrow
+                  size={13}
+                  className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
+                />
               )}
             </button>
           )}
@@ -145,20 +168,25 @@ export const Popup: React.FC = () => {
             <button
               onClick={() => handleTriggerHandoff('chatgpt')}
               disabled={transferring}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-emerald-500/40 hover:bg-zinc-850 text-xs font-semibold text-zinc-200 transition-all cursor-pointer group"
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
             >
-              <div className="flex items-center gap-2">
-                <ChatGPTLogo size={14} />
-                <span>ChatGPT</span>
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-4 h-4">
+                  <ChatGPTLogo size={15} />
+                </div>
+                <span className="text-xs font-medium text-[#F4F4F6]">
+                  ChatGPT
+                </span>
               </div>
               {transferring ? (
-                <SpinnerIcon size={12} className="text-emerald-400" />
+                <SpinnerIcon size={13} className="text-[#10A37F]" />
               ) : transferSuccess ? (
-                <CheckIcon size={12} className="text-emerald-400" />
+                <CheckIcon size={13} className="text-[#10A37F]" />
               ) : (
-                <span className="text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all">
-                  →
-                </span>
+                <TransitArrow
+                  size={13}
+                  className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
+                />
               )}
             </button>
           )}

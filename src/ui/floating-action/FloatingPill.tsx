@@ -52,7 +52,7 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
 
       if (extraction.conversation.messages.length === 0) {
         setStatus('failed');
-        setStatusText('No conversation messages found');
+        setStatusText('No messages found');
         setTimeout(() => setStatus('idle'), 3500);
         return;
       }
@@ -130,25 +130,25 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
     <div className="fixed bottom-5 right-5 z-[999999] font-sans antialiased select-none">
       {/* Completeness Warning Modal */}
       {status === 'completeness_warning' && (
-        <div className="absolute bottom-12 right-0 w-80 rounded-xl border border-amber-500/30 bg-zinc-950 p-4 text-zinc-100 shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
-          <div className="flex items-start gap-2.5 mb-3">
-            <div className="text-amber-400 mt-0.5">
-              <AlertIcon size={18} />
+        <div className="absolute bottom-11 right-0 w-72 rounded-xl border border-[#D97706]/40 bg-[#09090B] p-3.5 text-[#F4F4F6] shadow-2xl backdrop-blur-md">
+          <div className="flex items-start gap-2 mb-2.5">
+            <div className="text-[#D97706] mt-0.5">
+              <AlertIcon size={16} />
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-zinc-100">History Completeness</h4>
-              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+              <h4 className="text-xs font-semibold text-[#F4F4F6]">History Incomplete</h4>
+              <p className="text-[11px] text-[#8A8A93] mt-0.5 leading-relaxed">
                 {warningMessage || 'Some earlier messages may not be loaded in the page view.'}
               </p>
             </div>
           </div>
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-900">
+          <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-[#1E1E22]">
             <button
               onClick={() => {
                 setStatus('idle');
                 setWarningMessage(null);
               }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
+              className="px-2.5 py-1 rounded-md text-xs font-medium text-[#8A8A93] hover:text-[#EDEDEF] hover:bg-[#18181B] transition-colors"
             >
               Cancel
             </button>
@@ -158,7 +158,7 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
                   handleStartHandoff(pendingDestination, true);
                 }
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+              className="px-3 py-1 rounded-md text-xs font-semibold bg-[#D97706]/20 text-[#FBBF24] border border-[#D97706]/30 hover:bg-[#D97706]/30 transition-colors"
             >
               Continue anyway
             </button>
@@ -185,33 +185,33 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
           }
         }}
         disabled={status === 'extracting' || status === 'building_context' || status === 'opening_destination'}
-        className={`group flex items-center gap-2 px-3 py-2 rounded-full border shadow-lg transition-all duration-200 cursor-pointer ${
+        className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-lg transition-all duration-150 cursor-pointer ${
           status === 'idle'
-            ? 'bg-zinc-950/90 hover:bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:text-white shadow-zinc-950/50'
+            ? 'bg-[#09090B]/90 hover:bg-[#111113] border-[#232326] hover:border-[#36363A] text-[#EDEDEF] hover:text-white'
             : status === 'ready'
-            ? 'bg-emerald-950/80 border-emerald-800/80 text-emerald-200'
+            ? 'bg-[#064E3B]/90 border-[#059669]/60 text-[#A7F3D0]'
             : status === 'failed'
-            ? 'bg-rose-950/80 border-rose-800/80 text-rose-200'
-            : 'bg-zinc-900 border-zinc-700 text-zinc-300'
+            ? 'bg-[#881337]/90 border-[#E11D48]/60 text-[#FECDD3]'
+            : 'bg-[#111113] border-[#232326] text-[#A1A1AA]'
         }`}
       >
         <div className="flex items-center justify-center">
           {status === 'idle' && (
-            <PheroLogo size={14} className="text-blue-400 group-hover:scale-110 transition-transform" />
+            <PheroLogo size={14} className="text-[#3B82F6] group-hover:scale-105 transition-transform" />
           )}
           {(status === 'extracting' || status === 'building_context' || status === 'opening_destination') && (
-            <SpinnerIcon size={14} className="text-blue-400" />
+            <SpinnerIcon size={13} className="text-[#3B82F6]" />
           )}
-          {status === 'ready' && <CheckIcon size={14} className="text-emerald-400" />}
-          {status === 'failed' && <AlertIcon size={14} className="text-rose-400" />}
+          {status === 'ready' && <CheckIcon size={13} className="text-[#10A37F]" />}
+          {status === 'failed' && <AlertIcon size={13} className="text-[#E11D48]" />}
         </div>
 
-        <span className="text-xs font-semibold tracking-tight">
+        <span className="text-xs font-medium tracking-tight">
           {status === 'idle' ? 'Continue in…' : statusText}
         </span>
 
         {status === 'idle' && (
-          <span className="text-[10px] text-zinc-500 font-mono group-hover:text-zinc-300 transition-colors">
+          <span className="text-[11px] text-[#52525B] group-hover:text-[#A1A1AA] transition-colors">
             ↗
           </span>
         )}
