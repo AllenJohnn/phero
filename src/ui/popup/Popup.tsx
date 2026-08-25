@@ -35,7 +35,21 @@ export const Popup: React.FC = () => {
             setState(response.state);
           }
         } catch {
-          // Tab might not have content script injected yet or is standard page
+          // Attempt auto-injection if content script was not already loaded on open tab
+          if (chrome.scripting && tab.id) {
+            try {
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ['content.js'],
+              });
+              const retryResponse = await chrome.tabs.sendMessage(tab.id, { type: 'PHERO_CHECK_STATE' });
+              if (retryResponse?.state) {
+                setState(retryResponse.state);
+              }
+            } catch {
+              // Ignore
+            }
+          }
         }
       } catch (err) {
         Logger.error('Failed to query tab in popup', err);
@@ -55,11 +69,29 @@ export const Popup: React.FC = () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) throw new Error('No active tab found.');
 
-      // Send trigger message to active tab content script
-      const response = await chrome.tabs.sendMessage(tab.id, {
-        type: 'PHERO_TRIGGER_HANDOFF',
-        destinationProvider: dest,
-      });
+      let response: any;
+      try {
+        response = await chrome.tabs.sendMessage(tab.id, {
+          type: 'PHERO_TRIGGER_HANDOFF',
+          destinationProvider: dest,
+        });
+      } catch (sendErr) {
+        // If content script was disconnected or not loaded, dynamically inject it and retry
+        if (chrome.scripting) {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js'],
+          });
+          // Small delay for script mount
+          await new Promise((r) => setTimeout(r, 100));
+          response = await chrome.tabs.sendMessage(tab.id, {
+            type: 'PHERO_TRIGGER_HANDOFF',
+            destinationProvider: dest,
+          });
+        } else {
+          throw sendErr;
+        }
+      }
 
       if (response && response.success) {
         setTransferSuccess(true);
@@ -67,12 +99,16 @@ export const Popup: React.FC = () => {
           window.close();
         }, 1200);
       } else {
-        throw new Error(response?.error || 'Failed to extract conversation.');
+        throw new Error(response?.error || 'No active messages found in this chat.');
       }
     } catch (err) {
       Logger.error('Error triggering handoff from popup', err);
-      const errMsg = err instanceof Error ? err.message : 'Error starting transfer.';
-      setErrorText(errMsg.includes('Receiving end does not exist') ? 'Please refresh the chat page and try again.' : errMsg);
+      const msg = err instanceof Error ? err.message : 'Transfer could not be initiated.';
+      if (msg.includes('Receiving end does not exist') || msg.includes('Could not establish connection')) {
+        setErrorText('Please refresh the ChatGPT page once to connect PHERO.');
+      } else {
+        setErrorText(msg);
+      }
       setTransferring(false);
     }
   };
@@ -170,8 +206,8 @@ export const Popup: React.FC = () => {
           </div>
 
           {errorText && (
-            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg">
-              <AlertIcon size={13} />
+            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg leading-snug">
+              <AlertIcon size={14} className="shrink-0" />
               <span>{errorText}</span>
             </div>
           )}

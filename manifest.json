@@ -6,7 +6,8 @@
   "description": "Seamlessly continue AI conversations between ChatGPT and Claude with 1-click handoff.",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
