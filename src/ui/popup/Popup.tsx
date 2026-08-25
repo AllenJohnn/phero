@@ -53,22 +53,26 @@ export const Popup: React.FC = () => {
       setErrorText(null);
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) throw new Error('No active tab');
+      if (!tab?.id) throw new Error('No active tab found.');
 
-      // Trigger floating pill's handoff or execute extraction directly in tab
-      // Tell active tab content script to begin handoff to destination
-      await chrome.tabs.sendMessage(tab.id, {
-        type: 'PHERO_START_HANDOFF',
+      // Send trigger message to active tab content script
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        type: 'PHERO_TRIGGER_HANDOFF',
         destinationProvider: dest,
       });
 
-      setTransferSuccess(true);
-      setTimeout(() => {
-        window.close();
-      }, 1500);
+      if (response && response.success) {
+        setTransferSuccess(true);
+        setTimeout(() => {
+          window.close();
+        }, 1200);
+      } else {
+        throw new Error(response?.error || 'Failed to extract conversation.');
+      }
     } catch (err) {
       Logger.error('Error triggering handoff from popup', err);
-      setErrorText('Please trigger handoff directly from the in-page button');
+      const errMsg = err instanceof Error ? err.message : 'Error starting transfer.';
+      setErrorText(errMsg.includes('Receiving end does not exist') ? 'Please refresh the chat page and try again.' : errMsg);
       setTransferring(false);
     }
   };

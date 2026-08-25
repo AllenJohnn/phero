@@ -1,10 +1,50 @@
 import { AdapterRegistry } from '../adapters/registry.ts';
+import { AIProviderAdapter } from '../adapters/types.ts';
 import { mountFloatingPill } from '../ui/floating-action/mount.ts';
 import { InjectionCoordinator } from './injection-coordinator.ts';
 import { Logger } from '../shared/logger.ts';
 import { PheroMessage } from '../shared/messages.ts';
+import { ProviderId } from '../core/models/conversation.ts';
+import { HandoffPayload } from '../core/models/handoff.ts';
+import { buildContinuationPrompt } from '../core/context/prompt-builder.ts';
 
 Logger.info('PHERO content script loaded on page', { href: window.location.href });
+
+async function executeHandoff(currentAdapter: AIProviderAdapter, destination: ProviderId) {
+  Logger.info('Executing handoff from content script', {
+    source: currentAdapter.id,
+    destination,
+  });
+
+  const extraction = await currentAdapter.extractConversation(document);
+  if (extraction.conversation.messages.length === 0) {
+    throw new Error('No conversation messages detected on page.');
+  }
+
+  const continuationPrompt = buildContinuationPrompt(extraction.conversation);
+  const handoffId = `handoff_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const payload: HandoffPayload = {
+    handoffId,
+    sourceProvider: currentAdapter.id,
+    destinationProvider: destination,
+    conversation: extraction.conversation,
+    continuationPrompt,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    status: 'opening_destination',
+    isCompletenessVerified: extraction.isComplete,
+    totalMessagesExtracted: extraction.totalTurnsDetected,
+  };
+
+  const response = await chrome.runtime.sendMessage({
+    type: 'PHERO_START_HANDOFF',
+    sourceProvider: currentAdapter.id,
+    destinationProvider: destination,
+    payload,
+  });
+
+  return response;
+}
 
 function initialize() {
   const registry = AdapterRegistry.getInstance();
@@ -26,7 +66,7 @@ function initialize() {
     InjectionCoordinator.checkAndPerformInjection('claude');
   }
 
-  // 3. Listen for popup / background state checks
+  // 3. Listen for popup / background messages
   chrome.runtime.onMessage.addListener((message: PheroMessage, _sender, sendResponse) => {
     if (message.type === 'PHERO_CHECK_STATE') {
       (async () => {
@@ -47,6 +87,22 @@ function initialize() {
       })();
       return true;
     }
+
+    if (message.type === 'PHERO_TRIGGER_HANDOFF') {
+      (async () => {
+        try {
+          const res = await executeHandoff(currentAdapter, message.destinationProvider);
+          sendResponse({ success: true, result: res });
+        } catch (err) {
+          sendResponse({
+            success: false,
+            error: err instanceof Error ? err.message : 'Failed to extract conversation',
+          });
+        }
+      })();
+      return true;
+    }
+
     return false;
   });
 }

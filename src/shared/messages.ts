@@ -8,6 +8,7 @@ export type MessageType =
   | 'PHERO_START_HANDOFF'
   | 'PHERO_GET_PENDING_HANDOFF'
   | 'PHERO_PENDING_HANDOFF_RESPONSE'
+  | 'PHERO_TRIGGER_HANDOFF'
   | 'PHERO_UPDATE_STATUS'
   | 'PHERO_CLEAR_HANDOFF'
   | 'PHERO_COPY_FALLBACK';
@@ -20,6 +21,11 @@ export type StateResponseMessage = {
   type: 'PHERO_STATE_RESPONSE';
   providerId: ProviderId | null;
   state: ConversationState;
+};
+
+export type TriggerHandoffMessage = {
+  type: 'PHERO_TRIGGER_HANDOFF';
+  destinationProvider: ProviderId;
 };
 
 export type StartHandoffMessage = {
@@ -59,9 +65,11 @@ export type CopyFallbackMessage = {
 export type PheroMessage =
   | CheckStateMessage
   | StateResponseMessage
+  | TriggerHandoffMessage
   | StartHandoffMessage
   | GetPendingHandoffMessage
   | PendingHandoffResponseMessage
   | UpdateStatusMessage
   | ClearHandoffMessage
   | CopyFallbackMessage;
+
