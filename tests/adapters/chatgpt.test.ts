@@ -56,4 +56,29 @@ describe('ChatGPT Adapter', () => {
     expect(result.warning).toBeDefined();
     expect(result.conversation.metadata?.isTruncated).toBe(true);
   });
+
+  it('strips internal thought blocks and citations while preserving tables and code', async () => {
+    const fixturePath = path.resolve(__dirname, '../fixtures/chatgpt-reasoning-and-tables.html');
+    const html = fs.readFileSync(fixturePath, 'utf-8');
+    const dom = new JSDOM(html, { url: 'https://chatgpt.com/c/sharding-thread' });
+
+    const result = await extractChatGPTConversation(dom.window.document);
+    expect(result.conversation.messages.length).toBe(2);
+
+    const assistantMsg = result.conversation.messages[1];
+    const textContent = assistantMsg.content.map((c) => (c.type === 'text' ? c.text : '')).join(' ');
+
+    // Verify thought block was excluded
+    expect(textContent).not.toContain('Thought for 8 seconds');
+    expect(textContent).not.toContain('Internal reasoning details');
+
+    // Verify table content was preserved
+    expect(textContent).toContain('Horizontal');
+    expect(textContent).toContain('Vertical');
+
+    // Verify code was preserved
+    const sqlCode = assistantMsg.content.find((c) => c.type === 'code');
+    expect(sqlCode).toBeDefined();
+    expect((sqlCode as any).language).toBe('sql');
+  });
 });

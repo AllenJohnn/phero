@@ -65,10 +65,21 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
       continue;
     }
 
+    // Skip thought/reasoning elements
+    if (
+      child.classList.contains('thought-details') ||
+      child.getAttribute('data-testid') === 'thought-block' ||
+      child.tagName === 'DETAILS'
+    ) {
+      continue;
+    }
+
     // Otherwise extract text, stripping utility/action buttons
     const clone = child.cloneNode(true) as HTMLElement;
-    // Remove buttons, tooltips, SVGs
-    clone.querySelectorAll('button, svg, [role="button"], .sr-only').forEach((el) => el.remove());
+    // Remove buttons, tooltips, SVGs, thought summaries, citations
+    clone
+      .querySelectorAll('button, svg, [role="button"], .sr-only, details, [data-testid="thought-block"], .citation, sup')
+      .forEach((el) => el.remove());
     const text = clone.textContent?.trim() || '';
     if (text) {
       blocks.push({

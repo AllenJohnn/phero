@@ -110,7 +110,15 @@ export async function injectClaude(
           composer.appendChild(p);
         }
 
-        // Dispatch synthetic InputEvents to notify ProseMirror state listeners
+        // Dispatch synthetic beforeinput and InputEvents to notify ProseMirror / Lexical state listeners
+        composer.dispatchEvent(
+          new InputEvent('beforeinput', {
+            bubbles: true,
+            cancelable: true,
+            inputType: 'insertText',
+            data: prompt,
+          })
+        );
         composer.dispatchEvent(
           new InputEvent('input', {
             bubbles: true,
