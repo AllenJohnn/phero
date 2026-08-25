@@ -75,6 +75,18 @@ export default defineConfig({
         if (existsSync('manifest.json')) {
           copyFileSync('manifest.json', 'dist/manifest.json');
         }
+
+        // 4. Copy icons directory
+        if (existsSync('public/icons')) {
+          if (!existsSync('dist/icons')) {
+            mkdirSync('dist/icons', { recursive: true });
+          }
+          const { readdirSync } = await import('fs');
+          const files = readdirSync('public/icons');
+          for (const file of files) {
+            copyFileSync(path.join('public/icons', file), path.join('dist/icons', file));
+          }
+        }
       },
     },
   ],
