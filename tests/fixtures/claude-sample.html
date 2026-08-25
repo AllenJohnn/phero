@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>System Architecture - Claude</title>
+</head>
+<body>
+  <div id="root">
+    <main>
+      <div data-test-render-count="1" class="group/message">
+        <div class="font-user-message">Let's build a fast tokenizer in Rust.</div>
+      </div>
+      <div data-test-render-count="2" class="group/message">
+        <div class="font-claude-message standard-markdown">
+          <p>Here is a basic BPE tokenizer in Rust:</p>
+          <pre><code class="language-rust">pub struct Tokenizer {
+    vocab: Vec<String>,
+}</code></pre>
+        </div>
+      </div>
+    </main>
+    <fieldset>
+      <div class="ProseMirror" contenteditable="true" data-placeholder="Reply to Claude...">
+        <p><br></p>
+      </div>
+    </fieldset>
+  </div>
+</body>
+</html>

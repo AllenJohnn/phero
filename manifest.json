@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "PHERO — Carry the conversation forward",
+  "short_name": "PHERO",
+  "version": "0.1.0",
+  "description": "Seamlessly continue AI conversations between ChatGPT and Claude with 1-click handoff.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*"
+  ],
+  "action": {
+    "default_popup": "src/ui/popup/index.html",
+    "default_title": "PHERO — Carry conversation"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
