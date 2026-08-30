@@ -1,10 +1,16 @@
-﻿import { Logger } from '../../shared/logger.ts';
+import { Logger } from '../../shared/logger.ts';
 
 export type ScrollMetrics = {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
   isAtTop: boolean;
+};
+
+export type VisibleTurnRange = {
+  totalTurnsInDom: number;
+  earliestTurnId: string;
+  latestTurnId: string;
 };
 
 /**
@@ -105,34 +111,66 @@ export function getScrollMetrics(container: HTMLElement | Window, doc?: Document
 }
 
 /**
- * Performs an upward scroll with multiple browser mechanisms and dispatches scroll events.
+ * Identifies the range of conversation turns currently visible in the DOM.
+ */
+export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
+  const turns = Array.from(
+    doc.querySelectorAll<HTMLElement>(
+      'article[data-testid^="conversation-turn-"], [data-message-author-role], div[data-test-render-count], conversation-turn, user-query, model-response'
+    )
+  );
+
+  if (turns.length === 0) {
+    return { totalTurnsInDom: 0, earliestTurnId: 'none', latestTurnId: 'none' };
+  }
+
+  const getTurnId = (el: HTMLElement, index: number) => {
+    return (
+      el.getAttribute('data-message-id') ||
+      el.getAttribute('data-testid') ||
+      el.getAttribute('data-test-id') ||
+      `turn-dom-${index}`
+    );
+  };
+
+  return {
+    totalTurnsInDom: turns.length,
+    earliestTurnId: getTurnId(turns[0], 0),
+    latestTurnId: getTurnId(turns[turns.length - 1], turns.length - 1),
+  };
+}
+
+/**
+ * Performs a controlled upward scroll without triggering scrollIntoView jumps.
  */
 export async function executeScrollUp(
   doc: Document,
-  container: HTMLElement | Window,
-  topTurnElement?: HTMLElement | null
+  container: HTMLElement | Window
 ): Promise<ScrollMetrics> {
-  // 1. Scroll top turn into view if present
-  if (topTurnElement && typeof topTurnElement.scrollIntoView === 'function') {
-    try {
-      topTurnElement.scrollIntoView({ block: 'start', behavior: 'auto' });
-    } catch {
-      // Fallback
-    }
-  }
-
-  // 2. Adjust scroll position
+  // Pure controlled relative scroll decrement
   if (container instanceof HTMLElement) {
-    const scrollStep = Math.max(800, Math.floor(container.clientHeight * 0.85));
+    const clientH = container.clientHeight || 800;
+    // Adaptive step: larger when far from top, smoother when near top
+    const scrollStep =
+      container.scrollTop > 30000
+        ? Math.min(1000, Math.max(600, Math.floor(clientH * 0.85)))
+        : Math.min(750, Math.max(400, Math.floor(clientH * 0.7)));
+
     container.scrollTop = Math.max(0, container.scrollTop - scrollStep);
     container.dispatchEvent(new Event('scroll', { bubbles: true }));
   } else if (typeof window !== 'undefined') {
-    const scrollStep = Math.max(800, Math.floor(window.innerHeight * 0.85));
+    const clientH = window.innerHeight || 800;
+    const currentY = window.scrollY || doc.documentElement.scrollTop || 0;
+    const scrollStep =
+      currentY > 30000
+        ? Math.min(1000, Math.max(600, Math.floor(clientH * 0.85)))
+        : Math.min(750, Math.max(400, Math.floor(clientH * 0.7)));
+
     window.scrollBy({ top: -scrollStep, behavior: 'auto' });
     window.dispatchEvent(new Event('scroll', { bubbles: true }));
   }
 
-  // 3. Click any pagination buttons if rendered
+  // Click any pagination buttons if rendered
   const loadMoreBtn = doc.querySelector<HTMLElement>(
     'button[data-testid="load-more-messages"], .load-earlier-messages, button.load-more, [data-testid="load-earlier-turns"]'
   );

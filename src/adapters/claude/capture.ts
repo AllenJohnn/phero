@@ -50,7 +50,7 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
         const stableId =
           turnEl.getAttribute('data-message-id') ||
           turnEl.getAttribute('data-testid') ||
-          `claude-turn-${turnIndex}`;
+          `turn-fallback-${turnIndex}`;
 
         const blocks = extractClaudeContentBlocks(turnEl);
         if (blocks.length > 0) {
@@ -81,7 +81,7 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
           const blocks = extractClaudeContentBlocks(userTurns[i]);
           if (blocks.length > 0) {
             messages.push({
-              id: `claude-user-${i + 1}`,
+              id: `turn-fallback-user-${i + 1}`,
               role: 'user',
               content: blocks,
               timestamp: Date.now(),
@@ -92,7 +92,7 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
           const blocks = extractClaudeContentBlocks(assistantTurns[i]);
           if (blocks.length > 0) {
             messages.push({
-              id: `claude-assistant-${i + 1}`,
+              id: `turn-fallback-assistant-${i + 1}`,
               role: 'assistant',
               content: blocks,
               timestamp: Date.now(),
@@ -140,8 +140,7 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
 
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
     const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
-    const topTurn = doc.querySelector<HTMLElement>('div[data-test-render-count], div[data-testid="chat-message"], div.group\\/message');
-    await executeScrollUp(doc, container, topTurn);
+    await executeScrollUp(doc, container);
   }
 
   public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {

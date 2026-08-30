@@ -1,4 +1,4 @@
-﻿import { NormalizedMessage } from '../models/conversation.ts';
+import { NormalizedMessage } from '../models/conversation.ts';
 
 /**
  * Computes a fingerprint for content blocks within a message.
@@ -16,9 +16,19 @@ export function computeContentFingerprint(msg: NormalizedMessage): string {
 }
 
 /**
+ * Checks whether an ID is a genuine, globally unique message ID rather than a relative slice index.
+ */
+export function isStableMessageId(id: string | undefined): boolean {
+  if (!id) return false;
+  if (id.startsWith('temp-') || id.startsWith('turn-fallback-') || id.startsWith('turn-dom-')) return false;
+  if (id === 'conversation-turn' || id === 'chat-message') return false;
+  return true;
+}
+
+/**
  * Deduplicates messages collected across multiple virtualized scroll windows.
  * Priority of deduplication:
- * 1. Stable explicit message ID (e.g. node UUID or provider data-testid id)
+ * 1. Stable explicit message ID (e.g. node UUID or provider data-message-id)
  * 2. Combined role + exact content fingerprint
  *
  * Preserves chronological order (oldest to newest).
@@ -31,11 +41,11 @@ export function deduplicateMessages(
   const seenFingerprints = new Set<string>();
   const merged: NormalizedMessage[] = [];
 
-  // Combine lists: existing first, then incoming
+  // Combine lists: existing first (older or incoming window), then incoming
   const allMessages = [...existingMessages, ...incomingMessages];
 
   for (const msg of allMessages) {
-    const hasMeaningfulId = msg.id && !msg.id.startsWith('temp-') && !msg.id.startsWith('turn-fallback-');
+    const hasMeaningfulId = isStableMessageId(msg.id);
     const fingerprint = computeContentFingerprint(msg);
 
     if (hasMeaningfulId) {

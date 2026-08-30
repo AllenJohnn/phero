@@ -5,8 +5,8 @@ import {
   CaptureResult,
   ProviderCaptureStrategy,
 } from './types.ts';
-import { deduplicateMessages, reindexMessages } from './deduplication.ts';
-import { getScrollMetrics } from './scroll-helper.ts';
+import { deduplicateMessages, reindexMessages, isStableMessageId } from './deduplication.ts';
+import { getScrollMetrics, getVisibleTurnRange } from './scroll-helper.ts';
 import { Logger } from '../../shared/logger.ts';
 
 export class CaptureOrchestrator {
@@ -23,7 +23,6 @@ export class CaptureOrchestrator {
     },
     options: CaptureOptions = {}
   ): Promise<CaptureResult> {
-    const maxAttempts = options.maxScrollAttempts ?? 50;
     const scrollDelay = options.scrollDelayMs ?? 200;
     const onProgress = options.onProgress;
 
@@ -43,10 +42,16 @@ export class CaptureOrchestrator {
       originalScrollLeft = window.scrollX || doc.documentElement.scrollLeft || 0;
     }
 
+    const initialMetrics = getScrollMetrics(scrollContainer, doc);
+    // Dynamic safety limit based on initial scroll height/position
+    const estimatedSteps = Math.ceil(initialMetrics.scrollTop / 500);
+    const dynamicSafetyLimit = Math.min(1000, Math.max(300, estimatedSteps * 3 + 100));
+    const maxAttempts = options.maxScrollAttempts ?? dynamicSafetyLimit;
+
     let collectedMessages: NormalizedMessage[] = [];
     let windowsCount = 0;
     let attempts = 0;
-    let zeroAddedAtTopCount = 0;
+    let sameStateCount = 0;
     let reachedBeginning = false;
     let completenessState: CaptureCompletenessState = 'RECOVERING';
 
@@ -56,14 +61,22 @@ export class CaptureOrchestrator {
       collectedMessages = deduplicateMessages(collectedMessages, initialBatch);
       windowsCount++;
 
-      const initialMetrics = getScrollMetrics(scrollContainer, doc);
+      const initialTurnRange = getVisibleTurnRange(doc);
+      const stableIds = collectedMessages.filter((m) => isStableMessageId(m.id)).length;
+      const fallbackIds = collectedMessages.length - stableIds;
+
       Logger.info(`[PHERO CAPTURE INIT] ${meta.providerId}`, {
         initialExtracted: initialBatch.length,
         totalCollected: collectedMessages.length,
+        stableIds,
+        fallbackIds,
         scrollTop: initialMetrics.scrollTop,
         scrollHeight: initialMetrics.scrollHeight,
         clientHeight: initialMetrics.clientHeight,
-        isAtTop: initialMetrics.isAtTop,
+        visibleTurns: initialTurnRange.totalTurnsInDom,
+        earliestVisibleTurn: initialTurnRange.earliestTurnId,
+        latestVisibleTurn: initialTurnRange.latestTurnId,
+        maxSafetyAttempts: maxAttempts,
       });
 
       onProgress?.({
@@ -82,6 +95,8 @@ export class CaptureOrchestrator {
       while (!reachedBeginning && attempts < maxAttempts) {
         attempts++;
         const prevCount = collectedMessages.length;
+        const beforeMetrics = getScrollMetrics(scrollContainer, doc);
+        const beforeTurnRange = getVisibleTurnRange(doc);
 
         // Scroll upward
         await strategy.scrollUp(scrollContainer);
@@ -99,13 +114,44 @@ export class CaptureOrchestrator {
         collectedMessages = merged;
 
         const currentMetrics = getScrollMetrics(scrollContainer, doc);
+        const currentTurnRange = getVisibleTurnRange(doc);
+
+        const currentStableIds = collectedMessages.filter((m) => isStableMessageId(m.id)).length;
+        const currentFallbackIds = collectedMessages.length - currentStableIds;
+
+        let stepStatus = 'CONTINUING_TRAVERSAL';
+        if (addedCount > 0) {
+          stepStatus = 'OLDER_HISTORY_LOADED';
+          sameStateCount = 0;
+        } else if (currentMetrics.scrollHeight !== beforeMetrics.scrollHeight) {
+          stepStatus = 'PREPEND_RECONCILIATION';
+          sameStateCount = 0;
+        } else if (currentMetrics.isAtTop) {
+          stepStatus = 'AT_CONTAINER_TOP';
+        } else if (
+          currentTurnRange.earliestTurnId === beforeTurnRange.earliestTurnId &&
+          currentMetrics.scrollTop === beforeMetrics.scrollTop
+        ) {
+          sameStateCount++;
+          stepStatus = `NO_PROGRESS_${sameStateCount}`;
+        }
 
         Logger.info(`[PHERO CAPTURE STEP ${attempts}]`, {
+          attempt: attempts,
+          status: stepStatus,
           addedInStep: addedCount,
           totalCollected: collectedMessages.length,
-          scrollTop: currentMetrics.scrollTop,
-          scrollHeight: currentMetrics.scrollHeight,
+          uniqueCollected: collectedMessages.length,
+          stableIds: currentStableIds,
+          fallbackIds: currentFallbackIds,
+          scrollTopBefore: beforeMetrics.scrollTop,
+          scrollTopAfter: currentMetrics.scrollTop,
+          scrollHeightBefore: beforeMetrics.scrollHeight,
+          scrollHeightAfter: currentMetrics.scrollHeight,
           clientHeight: currentMetrics.clientHeight,
+          visibleTurns: currentTurnRange.totalTurnsInDom,
+          earliestVisibleTurn: currentTurnRange.earliestTurnId,
+          latestVisibleTurn: currentTurnRange.latestTurnId,
           isAtTop: currentMetrics.isAtTop,
         });
 
@@ -123,15 +169,13 @@ export class CaptureOrchestrator {
 
         if (currentMetrics.isAtTop) {
           if (addedCount === 0) {
-            zeroAddedAtTopCount++;
-            if (zeroAddedAtTopCount >= 3) {
-              // At the very top for 3 attempts and no more messages appeared
+            sameStateCount++;
+            if (sameStateCount >= 4) {
+              // At the very top for 4 attempts and no more messages appeared
               reachedBeginning = strategy.isAtBeginning(doc, collectedMessages);
               completenessState = reachedBeginning ? 'COMPLETE' : 'PARTIAL';
               break;
             }
-          } else {
-            zeroAddedAtTopCount = 0;
           }
         }
       }

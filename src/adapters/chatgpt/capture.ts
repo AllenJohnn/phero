@@ -32,7 +32,19 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
       let role: Role = 'user';
       const authorRoleAttr = turnEl.getAttribute('data-message-author-role');
       const testId = turnEl.getAttribute('data-testid') || '';
-      const stableId = turnEl.getAttribute('data-message-id') || testId || `chatgpt-turn-${idx}`;
+      
+      let stableId =
+        turnEl.getAttribute('data-message-id') ||
+        turnEl.querySelector('[data-message-id]')?.getAttribute('data-message-id') ||
+        '';
+
+      if (!stableId && /conversation-turn-\d+/.test(testId)) {
+        stableId = testId;
+      }
+
+      if (!stableId) {
+        stableId = `turn-fallback-${idx}`;
+      }
 
       if (authorRoleAttr === 'assistant' || authorRoleAttr === 'user' || authorRoleAttr === 'system') {
         role = authorRoleAttr;
@@ -100,13 +112,9 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
     const metrics = getScrollMetrics(container, doc);
     if (metrics.isAtTop && turns.length > 0) {
       const firstTurn = turns[0];
-      const rect = firstTurn.getBoundingClientRect();
-      if (rect.top >= 0 && rect.top < 300) {
-        // If first turn is at the top and container is scrolled all the way up
-        const testId = firstTurn.getAttribute('data-testid') || '';
-        if (testId.includes('turn-1') || testId.includes('turn-0')) {
-          return true;
-        }
+      const testId = firstTurn.getAttribute('data-testid') || '';
+      if (testId.includes('turn-1') || testId.includes('turn-0')) {
+        return true;
       }
     }
 
@@ -122,8 +130,7 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
 
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
     const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
-    const topTurn = doc.querySelector<HTMLElement>('article[data-testid^="conversation-turn-"], [data-message-author-role]');
-    await executeScrollUp(doc, container, topTurn);
+    await executeScrollUp(doc, container);
   }
 
   public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {

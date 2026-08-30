@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-
 import { buildContinuationPrompt } from '@/core/context/prompt-builder.ts';
 import { partitionConversation } from '@/core/context/budget.ts';
+import { deduplicateMessages, reindexMessages } from '@/core/capture/deduplication.ts';
 import { NormalizedMessage } from '@/core/models/conversation.ts';
 
 describe('Long Virtualized Conversation Simulation (100+ turns)', () => {
@@ -131,5 +131,64 @@ describe('Long Virtualized Conversation Simulation (100+ turns)', () => {
     expect(prompt).toContain('=== RECENT CONVERSATION ===');
     expect(prompt).toContain('=== CURRENT REQUEST ===');
     expect(prompt).toContain('Please write the fixed RequestVote handler in Go that properly rejects stale terms.');
+  });
+
+  it('correctly merges multiple backward sliding virtual windows into a full chronological 1..100 conversation', () => {
+    // Window 1: turns 88..100 (at bottom)
+    const window1: NormalizedMessage[] = [];
+    for (let i = 88; i <= 100; i++) {
+      window1.push({
+        id: `turn-fallback-${i}`,
+        role: i % 2 === 1 ? 'user' : 'assistant',
+        content: [{ type: 'text', text: `Message content turn ${i}` }],
+      });
+    }
+
+    // Window 2: turns 70..89 (overlapping turns 88-89)
+    const window2: NormalizedMessage[] = [];
+    for (let i = 70; i <= 89; i++) {
+      window2.push({
+        id: `turn-fallback-${i}`,
+        role: i % 2 === 1 ? 'user' : 'assistant',
+        content: [{ type: 'text', text: `Message content turn ${i}` }],
+      });
+    }
+
+    // Window 3: turns 35..72
+    const window3: NormalizedMessage[] = [];
+    for (let i = 35; i <= 72; i++) {
+      window3.push({
+        id: `turn-fallback-${i}`,
+        role: i % 2 === 1 ? 'user' : 'assistant',
+        content: [{ type: 'text', text: `Message content turn ${i}` }],
+      });
+    }
+
+    // Window 4: turns 1..38 (reaches beginning)
+    const window4: NormalizedMessage[] = [];
+    for (let i = 1; i <= 38; i++) {
+      window4.push({
+        id: `turn-fallback-${i}`,
+        role: i % 2 === 1 ? 'user' : 'assistant',
+        content: [{ type: 'text', text: `Message content turn ${i}` }],
+      });
+    }
+
+    let collected = deduplicateMessages([], window1);
+    expect(collected.length).toBe(13);
+
+    collected = deduplicateMessages(window2, collected);
+    expect(collected.length).toBe(31); // 70..100
+
+    collected = deduplicateMessages(window3, collected);
+    expect(collected.length).toBe(66); // 35..100
+
+    collected = deduplicateMessages(window4, collected);
+    expect(collected.length).toBe(100); // 1..100
+
+    const reindexed = reindexMessages(collected);
+    expect(reindexed.length).toBe(100);
+    expect((reindexed[0].content[0] as any).text).toBe('Message content turn 1');
+    expect((reindexed[99].content[0] as any).text).toBe('Message content turn 100');
   });
 });

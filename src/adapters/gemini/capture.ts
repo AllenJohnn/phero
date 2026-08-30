@@ -33,7 +33,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
         const stableId =
           turnEl.getAttribute('data-test-id') ||
           turnEl.getAttribute('id') ||
-          `gemini-turn-${turnIndex}`;
+          `turn-fallback-${turnIndex}`;
 
         const content = extractGeminiContentBlocks(bodyContainer);
         if (content.length > 0) {
@@ -64,7 +64,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
           const content = extractGeminiContentBlocks(userElements[i]);
           if (content.length > 0) {
             messages.push({
-              id: `gemini-user-${i + 1}`,
+              id: `turn-fallback-user-${i + 1}`,
               role: 'user',
               content,
               timestamp: Date.now(),
@@ -75,7 +75,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
           const content = extractGeminiContentBlocks(assistantElements[i]);
           if (content.length > 0) {
             messages.push({
-              id: `gemini-assistant-${i + 1}`,
+              id: `turn-fallback-assistant-${i + 1}`,
               role: 'assistant',
               content,
               timestamp: Date.now(),
@@ -114,8 +114,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
 
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
     const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
-    const topTurn = doc.querySelector<HTMLElement>('conversation-turn, user-query, model-response');
-    await executeScrollUp(doc, container, topTurn);
+    await executeScrollUp(doc, container);
   }
 
   public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {
