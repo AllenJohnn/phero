@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProviderId } from '../../core/models/conversation.ts';
-import { ClaudeLogo, ChatGPTLogo, TransitArrow } from '../icons/index.tsx';
+import { ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow } from '../icons/index.tsx';
 
 export type QuickSwitcherProps = {
   sourceProvider: ProviderId;
@@ -20,6 +20,14 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
       id: 'claude',
       name: 'Claude',
       icon: <ClaudeLogo size={15} />,
+    });
+  }
+
+  if (sourceProvider !== 'gemini') {
+    destinations.push({
+      id: 'gemini',
+      name: 'Gemini',
+      icon: <GeminiLogo size={15} />,
     });
   }
 

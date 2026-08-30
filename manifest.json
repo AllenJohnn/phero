@@ -3,7 +3,7 @@
   "name": "PHERO — Carry the conversation forward",
   "short_name": "PHERO",
   "version": "0.1.0",
-  "description": "Seamlessly continue AI conversations between ChatGPT and Claude with 1-click handoff.",
+  "description": "Seamlessly continue AI conversations between ChatGPT, Claude, and Gemini with 1-click handoff.",
   "permissions": [
     "storage",
     "tabs",
@@ -12,7 +12,8 @@
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
-    "https://claude.ai/*"
+    "https://claude.ai/*",
+    "https://gemini.google.com/*"
   ],
   "icons": {
     "16": "icons/icon-16.png",
@@ -39,7 +40,8 @@
       "matches": [
         "https://chatgpt.com/*",
         "https://chat.openai.com/*",
-        "https://claude.ai/*"
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"

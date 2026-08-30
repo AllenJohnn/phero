@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>API Design Architecture | Gemini</title>
+</head>
+<body>
+  <div class="conversation-container">
+    <div class="user-query-container">
+      <div class="query-content">How should we structure our REST endpoints for an AI proxy?</div>
+    </div>
+    <div class="response-container">
+      <div class="message-content markdown">
+        <p>A clean pattern is to separate administrative routes from runtime execution routes.</p>
+        <pre><code class="language-typescript">export interface RouteDefinition {
+  path: string;
+  method: 'GET' | 'POST';
+  handler: RequestHandler;
+}</code></pre>
+      </div>
+    </div>
+    <div class="user-query-container">
+      <div class="query-content">Can you also write a rate limiter in Python?</div>
+    </div>
+    <div class="response-container">
+      <div class="message-content markdown">
+        <p>Here is a token-bucket rate limiter in Python:</p>
+        <pre><code class="language-python">import time
+
+class TokenBucket:
+    def __init__(self, capacity: int, fill_rate: float):
+        self.capacity = capacity
+        self.fill_rate = fill_rate
+        self.tokens = capacity
+        self.last_update = time.time()
+</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <rich-textarea>
+    <div class="ql-editor" contenteditable="true" aria-label="Ask Gemini">
+      <p><br></p>
+    </div>
+  </rich-textarea>
+</body>
+</html>

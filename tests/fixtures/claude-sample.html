@@ -6,15 +6,72 @@
 <body>
   <div id="root">
     <main>
+      <!-- Turn 1: User message -->
       <div data-test-render-count="1" class="group/message">
-        <div class="font-user-message">Let's build a fast tokenizer in Rust.</div>
+        <div class="font-user-message">Let's build a modular adapter system in TypeScript for handling multiple AI providers.</div>
       </div>
+
+      <!-- Turn 2: Assistant with code, table, thinking block, UI noise -->
       <div data-test-render-count="2" class="group/message">
         <div class="font-claude-message standard-markdown">
-          <p>Here is a basic BPE tokenizer in Rust:</p>
-          <pre><code class="language-rust">pub struct Tokenizer {
-    vocab: Vec<String>,
+          <details>
+            <summary>Thinking</summary>
+            <div>Let me think about the architecture for this adapter system carefully...</div>
+          </details>
+          <p>Here is the adapter interface and registry implementation:</p>
+          <pre><code class="language-typescript">export interface Adapter {
+  id: string;
+  name: string;
+  detect(url: URL): boolean;
+  extract(doc: Document): Promise&lt;Result&gt;;
+}
+
+export class AdapterRegistry {
+  private adapters: Map&lt;string, Adapter&gt; = new Map();
+
+  register(adapter: Adapter): void {
+    this.adapters.set(adapter.id, adapter);
+  }
+
+  getAdapter(id: string): Adapter | undefined {
+    return this.adapters.get(id);
+  }
 }</code></pre>
+          <table>
+            <tr><th>Provider</th><th>Detection Pattern</th><th>Status</th></tr>
+            <tr><td>ChatGPT</td><td>chatgpt.com</td><td>Active</td></tr>
+            <tr><td>Claude</td><td>claude.ai</td><td>Active</td></tr>
+            <tr><td>Gemini</td><td>gemini.google.com</td><td>Planned</td></tr>
+          </table>
+          <button>Copy code</button>
+          <div role="button">Good response</div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle r="5" cx="8" cy="8"/></svg>
+          <div class="sr-only">Copied!</div>
+        </div>
+      </div>
+
+      <!-- Turn 3: User follow-up -->
+      <div data-test-render-count="3" class="group/message">
+        <div class="font-user-message">Now add artifact support for code generation.</div>
+      </div>
+
+      <!-- Turn 4: Assistant with artifact -->
+      <div data-test-render-count="4" class="group/message">
+        <div class="font-claude-message standard-markdown">
+          <p>Here is a code generator artifact that uses template resolution:</p>
+          <div data-testid="artifact-block" data-artifact-type="code">
+            <div class="artifact-title">CodeGenerator</div>
+            <div class="artifact-content"><pre><code class="language-typescript">export class CodeGenerator {
+  generate(template: string): string {
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => this.resolve(key));
+  }
+
+  private resolve(key: string): string {
+    return key.toUpperCase();
+  }
+}</code></pre></div>
+          </div>
+          <div data-testid="view-artifact-button">View Artifact</div>
         </div>
       </div>
     </main>

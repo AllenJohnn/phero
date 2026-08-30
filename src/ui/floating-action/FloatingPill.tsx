@@ -86,7 +86,8 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
 
       setPreparedPayload(payload);
       setStatus('opening_destination');
-      setStatusText(`Opening ${destination === 'claude' ? 'Claude' : 'destination'}…`);
+      const destName = destination === 'gemini' ? 'Gemini' : destination === 'claude' ? 'Claude' : destination === 'chatgpt' ? 'ChatGPT' : 'destination';
+      setStatusText(`Opening ${destName}…`);
 
       // Dispatch to background script
       const response = await chrome.runtime.sendMessage({

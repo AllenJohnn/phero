@@ -2,6 +2,7 @@ import { AIProviderAdapter } from './types.ts';
 import { ProviderId } from '../core/models/conversation.ts';
 import { ChatGPTAdapter } from './chatgpt/index.ts';
 import { ClaudeAdapter } from './claude/index.ts';
+import { GeminiAdapter } from './gemini/index.ts';
 
 export class AdapterRegistry {
   private static instance: AdapterRegistry;
@@ -10,6 +11,7 @@ export class AdapterRegistry {
   private constructor() {
     this.register(new ChatGPTAdapter());
     this.register(new ClaudeAdapter());
+    this.register(new GeminiAdapter());
   }
 
   public static getInstance(): AdapterRegistry {

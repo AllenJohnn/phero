@@ -26,7 +26,8 @@ export class InjectionCoordinator {
         handoffId: handoff.handoffId,
       });
 
-      this.showStatusBanner('Preparing Claude…', 'loading');
+      const destName = destinationProvider === 'chatgpt' ? 'ChatGPT' : destinationProvider === 'gemini' ? 'Gemini' : destinationProvider === 'claude' ? 'Claude' : destinationProvider;
+      this.showStatusBanner(`Preparing ${destName}…`, 'loading');
 
       const registry = AdapterRegistry.getInstance();
       const adapter = registry.getAdapter(destinationProvider);
@@ -116,6 +117,7 @@ export class InjectionCoordinator {
 
     const shadow = host.attachShadow({ mode: 'open' });
 
+    const destName = handoff.destinationProvider === 'chatgpt' ? 'ChatGPT' : handoff.destinationProvider === 'gemini' ? 'Gemini' : handoff.destinationProvider === 'claude' ? 'Claude' : handoff.destinationProvider;
     shadow.innerHTML = `
       <style>
         :host {
@@ -176,7 +178,7 @@ export class InjectionCoordinator {
       </style>
       <div class="modal">
         <div class="title">Automatic Placement Incomplete</div>
-        <div class="desc">PHERO prepared the context but couldn't place it into Claude's editor. You can copy the continuation prompt below.</div>
+        <div class="desc">PHERO prepared the context but couldn't place it into ${destName}'s editor. You can copy the continuation prompt below.</div>
         <div class="actions">
           <button class="btn-dismiss" id="btn-dismiss">Dismiss</button>
           <button class="btn-retry" id="btn-retry">Retry</button>

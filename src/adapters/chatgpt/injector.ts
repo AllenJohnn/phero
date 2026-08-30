@@ -49,10 +49,15 @@ export async function injectChatGPT(
       // ContentEditable div
       // Use execCommand for React / ProseMirror compatibility
       composer.textContent = '';
-      const inserted = doc.execCommand('insertText', false, prompt);
+      let inserted = false;
+      try {
+        inserted = doc.execCommand('insertText', false, prompt);
+      } catch {
+        // execCommand not available (e.g. JSDOM) — fall through to fallback
+      }
       if (!inserted) {
-        // Fallback to text node and input event
-        composer.innerText = prompt;
+        // Fallback to direct text and input event
+        composer.textContent = prompt;
         composer.dispatchEvent(
           new InputEvent('input', {
             bubbles: true,

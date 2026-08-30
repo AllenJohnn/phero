@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Distributed Systems - Gemini</title>
+</head>
+<body>
+  <div class="chat-history">
+    <conversation-turn class="user-turn">
+      <div class="user-query-container">
+        <div class="query-content">
+          <p>Explain Raft consensus and provide a Go implementation skeleton.</p>
+        </div>
+      </div>
+    </conversation-turn>
+
+    <conversation-turn class="model-turn">
+      <div class="response-container">
+        <message-content class="markdown">
+          <p>Raft is a consensus algorithm designed to be easy to understand. It is equivalent to Paxos in fault-tolerance and performance.</p>
+          <div class="code-block">
+            <div class="code-block-decoration">
+              <span class="code-lang">go</span>
+              <button class="copy-button">Copy code</button>
+            </div>
+            <pre><code class="language-go">package raft
+
+type Node struct {
+    id        int
+    currentTerm int
+    votedFor  int
+    log       []LogEntry
+}
+
+func NewNode(id int) *Node {
+    return &Node{id: id, currentTerm: 0, votedFor: -1}
+}</code></pre>
+          </div>
+          <p>Key Raft roles include Leader, Follower, and Candidate.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Responsibility</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Leader</td>
+                <td>Handles all client requests and log replication</td>
+              </tr>
+              <tr>
+                <td>Follower</td>
+                <td>Responds to incoming RPCs from leaders and candidates</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="bottom-actions">
+            <button class="like-btn">Good</button>
+            <button class="dislike-btn">Bad</button>
+            <tts-control><button>Listen</button></tts-control>
+          </div>
+        </message-content>
+      </div>
+    </conversation-turn>
+  </div>
+
+  <div class="input-area">
+    <rich-textarea>
+      <div class="ql-editor" contenteditable="true" role="textbox" aria-label="Enter a prompt here">
+        <p><br></p>
+      </div>
+    </rich-textarea>
+  </div>
+</body>
+</html>

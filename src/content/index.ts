@@ -61,10 +61,8 @@ function initialize() {
   // 1. Mount the in-page Floating Action Pill
   mountFloatingPill(currentAdapter.id);
 
-  // 2. If we are on Claude (or any destination), check for pending handoffs to inject
-  if (currentAdapter.id === 'claude') {
-    InjectionCoordinator.checkAndPerformInjection('claude');
-  }
+  // 2. Check for pending handoffs to inject on any supported destination
+  InjectionCoordinator.checkAndPerformInjection(currentAdapter.id);
 
   // 3. Listen for popup / background messages
   chrome.runtime.onMessage.addListener((message: PheroMessage, _sender, sendResponse) => {

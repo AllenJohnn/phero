@@ -55,4 +55,21 @@ describe('Handoff Ephemeral Storage & Lifecycle', () => {
     const retrieved = await SessionStorageManager.getPendingHandoff('claude');
     expect(retrieved).toBeNull();
   });
+
+  it('saves and retrieves pending handoff for Gemini destination', async () => {
+    const geminiPayload: HandoffPayload = {
+      ...mockPayload,
+      handoffId: 'gemini-handoff-001',
+      destinationProvider: 'gemini',
+      continuationPrompt: 'You are continuing in Gemini...',
+    };
+
+    await SessionStorageManager.saveHandoff(geminiPayload);
+
+    const retrieved = await SessionStorageManager.getPendingHandoff('gemini');
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.handoffId).toBe('gemini-handoff-001');
+    expect(retrieved?.destinationProvider).toBe('gemini');
+    expect(retrieved?.continuationPrompt).toBe('You are continuing in Gemini...');
+  });
 });

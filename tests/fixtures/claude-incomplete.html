@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Long Discussion - Claude</title>
+</head>
+<body>
+  <div id="root">
+    <main>
+      <button data-testid="load-more-messages">Load earlier messages</button>
+
+      <!-- Only the most recent turns are visible -->
+      <div data-test-render-count="1" class="group/message">
+        <div class="font-user-message">What about the error handling?</div>
+      </div>
+      <div data-test-render-count="2" class="group/message">
+        <div class="font-claude-message standard-markdown">
+          <p>For robust error handling, you should implement a layered approach: use try-catch at the adapter level, propagate typed errors through the pipeline, and provide meaningful fallback behavior at each stage. This ensures failures in one adapter don't cascade to others.</p>
+        </div>
+      </div>
+    </main>
+    <fieldset>
+      <div class="ProseMirror" contenteditable="true" data-placeholder="Reply to Claude...">
+        <p><br></p>
+      </div>
+    </fieldset>
+  </div>
+</body>
+</html>

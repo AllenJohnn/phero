@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ProviderId } from '../../core/models/conversation.ts';
-import { PheroLogo, ClaudeLogo, ChatGPTLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.tsx';
+import { PheroLogo, ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.tsx';
 import { Logger } from '../../shared/logger.ts';
 
 export const Popup: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [providerId, setProviderId] = useState<ProviderId | null>(null);
   const [transferring, setTransferring] = useState(false);
+  const [pendingDest, setPendingDest] = useState<ProviderId | null>(null);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
@@ -24,6 +25,8 @@ export const Popup: React.FC = () => {
           setProviderId('chatgpt');
         } else if (url.hostname.includes('claude.ai')) {
           setProviderId('claude');
+        } else if (url.hostname.includes('gemini.google.com') || url.hostname.includes('bard.google.com')) {
+          setProviderId('gemini');
         }
 
         try {
@@ -44,6 +47,7 @@ export const Popup: React.FC = () => {
   const handleTriggerHandoff = async (dest: ProviderId) => {
     try {
       setTransferring(true);
+      setPendingDest(dest);
       setErrorText(null);
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -83,6 +87,7 @@ export const Popup: React.FC = () => {
       const msg = err instanceof Error ? err.message : 'Error starting transfer.';
       setErrorText(msg.includes('Receiving end') ? 'Please refresh the chat page once.' : msg);
       setTransferring(false);
+      setPendingDest(null);
     }
   };
 
@@ -100,6 +105,14 @@ export const Popup: React.FC = () => {
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#141416] border border-[#232326] text-[11px] text-[#A1A1AA] font-medium tracking-tight">
           <span>Claude</span>
           <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+        </div>
+      );
+    }
+    if (providerId === 'gemini') {
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#141416] border border-[#232326] text-[11px] text-[#A1A1AA] font-medium tracking-tight">
+          <span>Gemini</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#1A73E8]" />
         </div>
       );
     }
@@ -129,7 +142,7 @@ export const Popup: React.FC = () => {
         </div>
       ) : !providerId ? (
         <div className="py-3 px-1 text-center text-xs text-[#8A8A93] leading-relaxed">
-          Open a ChatGPT or Claude tab to carry it forward.
+          Open a ChatGPT, Claude, or Gemini tab to carry it forward.
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -151,9 +164,36 @@ export const Popup: React.FC = () => {
                   Claude
                 </span>
               </div>
-              {transferring ? (
+              {transferring && pendingDest === 'claude' ? (
                 <SpinnerIcon size={13} className="text-[#D97706]" />
-              ) : transferSuccess ? (
+              ) : transferSuccess && pendingDest === 'claude' ? (
+                <CheckIcon size={13} className="text-[#10A37F]" />
+              ) : (
+                <TransitArrow
+                  size={13}
+                  className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
+                />
+              )}
+            </button>
+          )}
+
+          {providerId !== 'gemini' && (
+            <button
+              onClick={() => handleTriggerHandoff('gemini')}
+              disabled={transferring}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-4 h-4">
+                  <GeminiLogo size={15} />
+                </div>
+                <span className="text-xs font-medium text-[#F4F4F6]">
+                  Gemini
+                </span>
+              </div>
+              {transferring && pendingDest === 'gemini' ? (
+                <SpinnerIcon size={13} className="text-[#1A73E8]" />
+              ) : transferSuccess && pendingDest === 'gemini' ? (
                 <CheckIcon size={13} className="text-[#10A37F]" />
               ) : (
                 <TransitArrow
@@ -178,9 +218,9 @@ export const Popup: React.FC = () => {
                   ChatGPT
                 </span>
               </div>
-              {transferring ? (
+              {transferring && pendingDest === 'chatgpt' ? (
                 <SpinnerIcon size={13} className="text-[#10A37F]" />
-              ) : transferSuccess ? (
+              ) : transferSuccess && pendingDest === 'chatgpt' ? (
                 <CheckIcon size={13} className="text-[#10A37F]" />
               ) : (
                 <TransitArrow
