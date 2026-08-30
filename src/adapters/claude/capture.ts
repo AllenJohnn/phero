@@ -1,6 +1,7 @@
-﻿import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
+import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
 import { ProviderCaptureStrategy } from '../../core/capture/types.ts';
 import { extractClaudeContentBlocks } from './extractor.ts';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.ts';
 
 export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
   public readonly providerId = 'claude' as const;
@@ -105,37 +106,45 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
   }
 
   public isAtBeginning(doc: Document, _messages: NormalizedMessage[]): boolean {
-    // Check if there is a "Load earlier messages" button
-    const loadMoreBtn = doc.querySelector('button[data-testid="load-more-messages"], .load-earlier-messages');
+    // 1. If load earlier messages button exists, we are definitely NOT at the beginning
+    const loadMoreBtn = doc.querySelector('button[data-testid="load-more-messages"], .load-earlier-messages, [data-testid="load-earlier-turns"]');
     if (loadMoreBtn) {
       return false;
     }
 
-    // Check if chat top header or conversation title banner is at the top of scroll view
-    const topMarker = doc.querySelector('[data-testid="chat-title"], h1.chat-title, .chat-start-marker');
+    // 2. Check if scroll container is at top
+    const container = this.getScrollContainer(doc);
+    const metrics = getScrollMetrics(container, doc);
+
+    // 3. If scroll container is scrolled down, we have not reached the top
+    if (!metrics.isAtTop) {
+      return false;
+    }
+
+    // 4. Check if top header or start marker is visible
+    const topMarker = doc.querySelector('[data-testid="chat-title"], h1.chat-title, .chat-start-marker, div[data-testid="conversation-header"]');
     if (topMarker) {
       return true;
     }
 
-    return true; // If no pagination button exists, DOM typically holds all loaded messages
+    // If scrollTop <= 5, we are at the top of the scroll container
+    return metrics.isAtTop;
   }
 
   public getScrollContainer(doc: Document): HTMLElement | Window {
-    const scrollEl = doc.querySelector<HTMLElement>(
-      'div.overflow-y-auto, [data-testid="scroll-container"], main div.flex-1.overflow-y-auto'
+    const turnElements = Array.from(
+      doc.querySelectorAll('div[data-test-render-count], div[data-testid="chat-message"], div.group\\/message')
     );
-    return scrollEl || (typeof window !== 'undefined' ? window : (doc.documentElement as any));
+    return findActiveScrollContainer(doc, turnElements);
   }
 
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
-    if (container instanceof HTMLElement) {
-      container.scrollTop = Math.max(0, container.scrollTop - 1000);
-    } else if (typeof window !== 'undefined') {
-      window.scrollBy({ top: -1000, behavior: 'smooth' });
-    }
+    const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
+    const topTurn = doc.querySelector<HTMLElement>('div[data-test-render-count], div[data-testid="chat-message"], div.group\\/message');
+    await executeScrollUp(doc, container, topTurn);
   }
 
-  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 300): Promise<boolean> {
+  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {
     const startTime = Date.now();
     return new Promise((resolve) => {
       const check = () => {

@@ -1,6 +1,7 @@
-﻿import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
+import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
 import { ProviderCaptureStrategy } from '../../core/capture/types.ts';
 import { extractGeminiContentBlocks } from './extractor.ts';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.ts';
 
 export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
   public readonly providerId = 'gemini' as const;
@@ -88,34 +89,36 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
   }
 
   public isAtBeginning(doc: Document, _messages: NormalizedMessage[]): boolean {
-    const topGreeting = doc.querySelector('div.greeting, .gemini-intro-title, div[data-test-id="conversation-title"]');
-    if (topGreeting) return true;
-
-    // Check if scroll container is at top
     const container = this.getScrollContainer(doc);
-    if (container instanceof HTMLElement) {
-      if (container.scrollTop <= 10) return true;
+    const metrics = getScrollMetrics(container, doc);
+
+    // If scroll container has room to scroll up, we are not at the beginning
+    if (!metrics.isAtTop) {
+      return false;
     }
 
-    return true; // Gemini keeps full loaded conversation in DOM without removing earlier turns
+    const topGreeting = doc.querySelector('div.greeting, .gemini-intro-title, div[data-test-id="conversation-title"], .chat-history-start');
+    if (topGreeting) {
+      return true;
+    }
+
+    return metrics.isAtTop;
   }
 
   public getScrollContainer(doc: Document): HTMLElement | Window {
-    const scrollEl = doc.querySelector<HTMLElement>(
-      'infinite-scroller, div.chat-history, div.conversation-container, main'
+    const turnElements = Array.from(
+      doc.querySelectorAll('conversation-turn, div[data-test-id="conversation-turn"], user-query, model-response')
     );
-    return scrollEl || (typeof window !== 'undefined' ? window : (doc.documentElement as any));
+    return findActiveScrollContainer(doc, turnElements);
   }
 
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
-    if (container instanceof HTMLElement) {
-      container.scrollTop = Math.max(0, container.scrollTop - 1000);
-    } else if (typeof window !== 'undefined') {
-      window.scrollBy({ top: -1000, behavior: 'smooth' });
-    }
+    const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
+    const topTurn = doc.querySelector<HTMLElement>('conversation-turn, user-query, model-response');
+    await executeScrollUp(doc, container, topTurn);
   }
 
-  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 300): Promise<boolean> {
+  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {
     const startTime = Date.now();
     return new Promise((resolve) => {
       const check = () => {

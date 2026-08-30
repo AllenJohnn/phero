@@ -1,4 +1,4 @@
-﻿import { NormalizedConversation, NormalizedMessage, ProviderId } from '../models/conversation.ts';
+import { NormalizedConversation, NormalizedMessage, ProviderId } from '../models/conversation.ts';
 import {
   CaptureCompletenessState,
   CaptureOptions,
@@ -6,6 +6,7 @@ import {
   ProviderCaptureStrategy,
 } from './types.ts';
 import { deduplicateMessages, reindexMessages } from './deduplication.ts';
+import { getScrollMetrics } from './scroll-helper.ts';
 import { Logger } from '../../shared/logger.ts';
 
 export class CaptureOrchestrator {
@@ -22,8 +23,8 @@ export class CaptureOrchestrator {
     },
     options: CaptureOptions = {}
   ): Promise<CaptureResult> {
-    const maxAttempts = options.maxScrollAttempts ?? 15;
-    const scrollDelay = options.scrollDelayMs ?? 150;
+    const maxAttempts = options.maxScrollAttempts ?? 50;
+    const scrollDelay = options.scrollDelayMs ?? 200;
     const onProgress = options.onProgress;
 
     Logger.info(`Starting capture orchestrator for ${meta.providerId}`);
@@ -45,6 +46,7 @@ export class CaptureOrchestrator {
     let collectedMessages: NormalizedMessage[] = [];
     let windowsCount = 0;
     let attempts = 0;
+    let zeroAddedAtTopCount = 0;
     let reachedBeginning = false;
     let completenessState: CaptureCompletenessState = 'RECOVERING';
 
@@ -53,6 +55,16 @@ export class CaptureOrchestrator {
       const initialBatch = strategy.captureCurrentVisibleMessages(doc);
       collectedMessages = deduplicateMessages(collectedMessages, initialBatch);
       windowsCount++;
+
+      const initialMetrics = getScrollMetrics(scrollContainer, doc);
+      Logger.info(`[PHERO CAPTURE INIT] ${meta.providerId}`, {
+        initialExtracted: initialBatch.length,
+        totalCollected: collectedMessages.length,
+        scrollTop: initialMetrics.scrollTop,
+        scrollHeight: initialMetrics.scrollHeight,
+        clientHeight: initialMetrics.clientHeight,
+        isAtTop: initialMetrics.isAtTop,
+      });
 
       onProgress?.({
         status: 'RECOVERING',
@@ -76,7 +88,7 @@ export class CaptureOrchestrator {
 
         // Wait for potential virtual DOM rendering or lazy loading
         await new Promise((r) => setTimeout(r, scrollDelay));
-        await strategy.waitForNewMessages(doc, prevCount, 300);
+        await strategy.waitForNewMessages(doc, prevCount, 350);
 
         // Capture newly rendered window
         const newBatch = strategy.captureCurrentVisibleMessages(doc);
@@ -85,6 +97,17 @@ export class CaptureOrchestrator {
 
         const addedCount = merged.length - collectedMessages.length;
         collectedMessages = merged;
+
+        const currentMetrics = getScrollMetrics(scrollContainer, doc);
+
+        Logger.info(`[PHERO CAPTURE STEP ${attempts}]`, {
+          addedInStep: addedCount,
+          totalCollected: collectedMessages.length,
+          scrollTop: currentMetrics.scrollTop,
+          scrollHeight: currentMetrics.scrollHeight,
+          clientHeight: currentMetrics.clientHeight,
+          isAtTop: currentMetrics.isAtTop,
+        });
 
         onProgress?.({
           status: 'RECOVERING',
@@ -98,16 +121,18 @@ export class CaptureOrchestrator {
           break;
         }
 
-        // If no new messages were found after repeated scroll, we might have reached the top or hit a limit
-        if (addedCount === 0 && attempts >= 3) {
-          // Double check if top marker is reached
-          if (strategy.isAtBeginning(doc, collectedMessages)) {
-            reachedBeginning = true;
-            completenessState = 'COMPLETE';
+        if (currentMetrics.isAtTop) {
+          if (addedCount === 0) {
+            zeroAddedAtTopCount++;
+            if (zeroAddedAtTopCount >= 3) {
+              // At the very top for 3 attempts and no more messages appeared
+              reachedBeginning = strategy.isAtBeginning(doc, collectedMessages);
+              completenessState = reachedBeginning ? 'COMPLETE' : 'PARTIAL';
+              break;
+            }
           } else {
-            completenessState = 'PARTIAL';
+            zeroAddedAtTopCount = 0;
           }
-          break;
         }
       }
 

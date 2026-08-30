@@ -1,6 +1,7 @@
-﻿import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
+import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
 import { ProviderCaptureStrategy } from '../../core/capture/types.ts';
 import { extractContentBlocksFromElement } from './extractor.ts';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.ts';
 
 export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
   public readonly providerId = 'chatgpt' as const;
@@ -83,39 +84,49 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
       const match = testId.match(/conversation-turn-(\d+)/);
       if (match) {
         const turnNum = parseInt(match[1], 10);
-        // turn 0 or 1 is the beginning turn
         if (turnNum <= 1) return true;
       }
     }
 
-    // Check if scroll is at top or top-most element is in view
     const topElement = doc.querySelector('article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-0"]');
     if (topElement) return true;
 
-    // Check if messages array has turn-1 or turn-0
     if (messages.some((m) => m.id.includes('turn-0') || m.id.includes('turn-1'))) {
       return true;
+    }
+
+    // Check if scroll container is at top and top turn is at top of container
+    const container = this.getScrollContainer(doc);
+    const metrics = getScrollMetrics(container, doc);
+    if (metrics.isAtTop && turns.length > 0) {
+      const firstTurn = turns[0];
+      const rect = firstTurn.getBoundingClientRect();
+      if (rect.top >= 0 && rect.top < 300) {
+        // If first turn is at the top and container is scrolled all the way up
+        const testId = firstTurn.getAttribute('data-testid') || '';
+        if (testId.includes('turn-1') || testId.includes('turn-0')) {
+          return true;
+        }
+      }
     }
 
     return false;
   }
 
   public getScrollContainer(doc: Document): HTMLElement | Window {
-    const mainScroll = doc.querySelector<HTMLElement>(
-      'div[class*="react-scroll-to-bottom"], main div[class*="overflow-y-auto"], main, div.overflow-y-auto'
+    const turnElements = Array.from(
+      doc.querySelectorAll('article[data-testid^="conversation-turn-"], [data-message-author-role]')
     );
-    return mainScroll || (typeof window !== 'undefined' ? window : (doc.documentElement as any));
+    return findActiveScrollContainer(doc, turnElements);
   }
 
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
-    if (container instanceof HTMLElement) {
-      container.scrollTop = Math.max(0, container.scrollTop - 1200);
-    } else if (typeof window !== 'undefined') {
-      window.scrollBy({ top: -1200, behavior: 'smooth' });
-    }
+    const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
+    const topTurn = doc.querySelector<HTMLElement>('article[data-testid^="conversation-turn-"], [data-message-author-role]');
+    await executeScrollUp(doc, container, topTurn);
   }
 
-  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 300): Promise<boolean> {
+  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {
     const startTime = Date.now();
     return new Promise((resolve) => {
       const check = () => {
