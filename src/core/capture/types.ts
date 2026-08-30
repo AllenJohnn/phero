@@ -1,4 +1,4 @@
-﻿import { NormalizedConversation, NormalizedMessage, ProviderId } from '../models/conversation.ts';
+import { NormalizedConversation, NormalizedMessage, ProviderId } from '../models/conversation.ts';
 
 export type CaptureCompletenessState = 'COMPLETE' | 'RECOVERING' | 'PARTIAL' | 'UNKNOWN';
 
@@ -52,7 +52,11 @@ export interface ProviderCaptureStrategy {
   scrollUp(container: HTMLElement | Window): Promise<void>;
 
   /**
-   * Waits for DOM mutations or new messages to appear after scrolling.
+   * Waits for DOM mutations or new messages to appear after scrolling based on logical progress.
    */
-  waitForNewMessages(doc: Document, previousCount: number, timeoutMs?: number): Promise<boolean>;
+  waitForNewMessages(
+    doc: Document,
+    beforeTurnRange: import('./scroll-helper.ts').VisibleTurnRange,
+    timeoutMs?: number
+  ): Promise<boolean>;
 }

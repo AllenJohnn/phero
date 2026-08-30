@@ -3,6 +3,13 @@ import { ProviderId } from '../../core/models/conversation.ts';
 import { isChatGPTUrl, detectChatGPTState } from './detector.ts';
 import { extractChatGPTConversation } from './extractor.ts';
 import { waitForChatGPTInput, injectChatGPT } from './injector.ts';
+import { startManualScrollDiagnostics } from './diagnostics.ts';
+
+if (typeof window !== 'undefined') {
+  (window as any).__PHERO_START_DIAGNOSTICS__ = () => {
+    startManualScrollDiagnostics(document);
+  };
+}
 
 export class ChatGPTAdapter implements AIProviderAdapter {
   public readonly id = 'chatgpt' as const;

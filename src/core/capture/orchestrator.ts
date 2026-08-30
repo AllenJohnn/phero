@@ -104,9 +104,9 @@ export class CaptureOrchestrator {
         // Scroll upward
         await strategy.scrollUp(scrollContainer);
 
-        // Wait for potential virtual DOM rendering or lazy loading
-        await new Promise((r) => setTimeout(r, scrollDelay));
-        await strategy.waitForNewMessages(doc, prevCount, 350);
+        // Wait for virtual DOM rendering or lazy loading using logical boundary changes
+        // Allow up to 2500ms for network requests to complete if older history is being fetched
+        await strategy.waitForNewMessages(doc, beforeTurnRange, 2500);
 
         // Capture newly rendered window
         const newBatch = strategy.captureCurrentVisibleMessages(doc);
@@ -117,7 +117,13 @@ export class CaptureOrchestrator {
         const addedCount = merged.length - collectedMessages.length;
         collectedMessages = merged;
 
-        const currentMetrics = getScrollMetrics(scrollContainer, doc);
+        // Check if scroll container was replaced during prepending / virtualization
+        let activeContainer = scrollContainer;
+        if (scrollContainer instanceof HTMLElement && (!scrollContainer.isConnected || scrollContainer.scrollHeight <= scrollContainer.clientHeight)) {
+          activeContainer = strategy.getScrollContainer(doc);
+        }
+
+        const currentMetrics = getScrollMetrics(activeContainer, doc);
         const currentTurnRange = getVisibleTurnRange(doc);
 
         const currentStableIds = collectedMessages.filter((m) => isStableMessageId(m.id)).length;
@@ -175,11 +181,16 @@ export class CaptureOrchestrator {
           break;
         }
 
+        // Bounded reconciliation when at container top:
+        // Physical scrollTop === 0 is NOT automatically logical beginning.
         if (currentMetrics.isAtTop) {
           if (addedCount === 0) {
             sameStateCount++;
-            if (sameStateCount >= 4) {
-              // At the very top for 4 attempts and no more messages appeared
+            // Try triggering scroll/pagination again up to 6 times with a slight delay
+            if (sameStateCount < 6) {
+              await new Promise((r) => setTimeout(r, 250));
+            } else {
+              // Re-check beginning with definitive evidence
               reachedBeginning = strategy.isAtBeginning(doc, collectedMessages);
               completenessState = reachedBeginning ? 'COMPLETE' : 'PARTIAL';
               break;

@@ -115,23 +115,36 @@ export function getScrollMetrics(container: HTMLElement | Window, doc?: Document
  * Identifies the range of conversation turns currently visible in the DOM.
  */
 export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
-  const turns = Array.from(
-    doc.querySelectorAll<HTMLElement>(
-      'article[data-testid^="conversation-turn-"], [data-message-author-role], div[data-test-render-count], conversation-turn, user-query, model-response'
-    )
+  // Check articles first
+  let turns = Array.from(
+    doc.querySelectorAll<HTMLElement>('article[data-testid^="conversation-turn-"]')
   );
+
+  if (turns.length === 0) {
+    turns = Array.from(
+      doc.querySelectorAll<HTMLElement>(
+        '[data-message-author-role], div[data-test-render-count], conversation-turn, user-query, model-response'
+      )
+    );
+  }
 
   if (turns.length === 0) {
     return { totalTurnsInDom: 0, earliestTurnId: 'none', latestTurnId: 'none', turnIds: [] };
   }
 
   const getTurnId = (el: HTMLElement, index: number) => {
-    return (
+    const directId =
       el.getAttribute('data-message-id') ||
       el.getAttribute('data-testid') ||
-      el.getAttribute('data-test-id') ||
-      `turn-dom-${index}`
-    );
+      el.getAttribute('data-test-id');
+    if (directId) return directId;
+
+    const childId =
+      el.querySelector('[data-message-id]')?.getAttribute('data-message-id') ||
+      el.querySelector('[data-testid]')?.getAttribute('data-testid');
+    if (childId) return childId;
+
+    return `turn-dom-${index}`;
   };
 
   const turnIds = turns.map((t, idx) => getTurnId(t, idx));
@@ -145,20 +158,37 @@ export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
 }
 
 /**
- * Performs a controlled upward scroll without triggering scrollIntoView jumps.
+ * Performs a controlled upward scroll and activates virtualizer intersection observers.
  */
 export async function executeScrollUp(
   doc: Document,
   container: HTMLElement | Window
 ): Promise<ScrollMetrics> {
-  // Pure controlled relative scroll decrement
+  // 1. Identify earliest mounted turn to anchor intersection or scrollIntoView if needed
+  const turns = Array.from(
+    doc.querySelectorAll<HTMLElement>(
+      'article[data-testid^="conversation-turn-"], [data-message-author-role]'
+    )
+  );
+
+  // 2. Relative scroll decrement
   if (container instanceof HTMLElement) {
     const clientH = container.clientHeight || 800;
-    // Adaptive step: larger when far from top, smoother when near top
     const scrollStep =
       container.scrollTop > 30000
         ? Math.min(1000, Math.max(600, Math.floor(clientH * 0.85)))
-        : Math.min(750, Math.max(400, Math.floor(clientH * 0.7)));
+        : Math.min(750, Math.max(350, Math.floor(clientH * 0.7)));
+
+    // When near top (e.g. scrollTop < 2000) or if earliest turn exists, scroll earliest turn into view
+    // so virtualizer intersection observer fires
+    if (turns.length > 0 && container.scrollTop < 2500) {
+      const topTurn = turns[0];
+      try {
+        topTurn.scrollIntoView({ block: 'start', behavior: 'auto' });
+      } catch {
+        // Fallback
+      }
+    }
 
     container.scrollTop = Math.max(0, container.scrollTop - scrollStep);
     container.dispatchEvent(new Event('scroll', { bubbles: true }));
@@ -168,15 +198,24 @@ export async function executeScrollUp(
     const scrollStep =
       currentY > 30000
         ? Math.min(1000, Math.max(600, Math.floor(clientH * 0.85)))
-        : Math.min(750, Math.max(400, Math.floor(clientH * 0.7)));
+        : Math.min(750, Math.max(350, Math.floor(clientH * 0.7)));
+
+    if (turns.length > 0 && currentY < 2500) {
+      const topTurn = turns[0];
+      try {
+        topTurn.scrollIntoView({ block: 'start', behavior: 'auto' });
+      } catch {
+        // Fallback
+      }
+    }
 
     window.scrollBy({ top: -scrollStep, behavior: 'auto' });
     window.dispatchEvent(new Event('scroll', { bubbles: true }));
   }
 
-  // Click any pagination buttons if rendered
+  // Click any pagination / load more buttons if present
   const loadMoreBtn = doc.querySelector<HTMLElement>(
-    'button[data-testid="load-more-messages"], .load-earlier-messages, button.load-more, [data-testid="load-earlier-turns"]'
+    'button[data-testid="load-more-messages"], .load-earlier-messages, button.load-more, [data-testid="load-earlier-turns"], [aria-label*="earlier messages" i], [aria-label*="load more" i]'
   );
   if (loadMoreBtn && typeof loadMoreBtn.click === 'function') {
     Logger.info('Clicking "Load earlier messages" button');
