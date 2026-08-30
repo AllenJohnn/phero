@@ -5,7 +5,7 @@ import {
   CaptureResult,
   ProviderCaptureStrategy,
 } from './types.ts';
-import { deduplicateMessages, reindexMessages, isStableMessageId } from './deduplication.ts';
+import { deduplicateMessagesWithAudit, reindexMessages, isStableMessageId } from './deduplication.ts';
 import { getScrollMetrics, getVisibleTurnRange } from './scroll-helper.ts';
 import { Logger } from '../../shared/logger.ts';
 
@@ -58,7 +58,8 @@ export class CaptureOrchestrator {
     try {
       // 2. Initial capture of currently rendered window
       const initialBatch = strategy.captureCurrentVisibleMessages(doc);
-      collectedMessages = deduplicateMessages(collectedMessages, initialBatch);
+      const initialMergeResult = deduplicateMessagesWithAudit(collectedMessages, initialBatch);
+      collectedMessages = initialMergeResult.messages;
       windowsCount++;
 
       const initialTurnRange = getVisibleTurnRange(doc);
@@ -73,9 +74,11 @@ export class CaptureOrchestrator {
         scrollTop: initialMetrics.scrollTop,
         scrollHeight: initialMetrics.scrollHeight,
         clientHeight: initialMetrics.clientHeight,
-        visibleTurns: initialTurnRange.totalTurnsInDom,
+        visibleTurnsCount: initialTurnRange.totalTurnsInDom,
         earliestVisibleTurn: initialTurnRange.earliestTurnId,
         latestVisibleTurn: initialTurnRange.latestTurnId,
+        visibleTurnIds: initialTurnRange.turnIds.join(', '),
+        extractedMessageIds: initialBatch.map((m) => m.id).join(', '),
         maxSafetyAttempts: maxAttempts,
       });
 
@@ -107,7 +110,8 @@ export class CaptureOrchestrator {
 
         // Capture newly rendered window
         const newBatch = strategy.captureCurrentVisibleMessages(doc);
-        const merged = deduplicateMessages(newBatch, collectedMessages); // put older ones first
+        const mergeResult = deduplicateMessagesWithAudit(newBatch, collectedMessages); // put older ones first
+        const merged = mergeResult.messages;
         windowsCount++;
 
         const addedCount = merged.length - collectedMessages.length;
@@ -141,17 +145,21 @@ export class CaptureOrchestrator {
           status: stepStatus,
           addedInStep: addedCount,
           totalCollected: collectedMessages.length,
-          uniqueCollected: collectedMessages.length,
+          batchExtractedCount: newBatch.length,
+          batchExtractedIds: newBatch.map((m) => m.id).join(', '),
           stableIds: currentStableIds,
           fallbackIds: currentFallbackIds,
+          skippedDupId: mergeResult.audit.skippedDuplicateIdCount,
+          skippedDupFingerprint: mergeResult.audit.skippedDuplicateFingerprintCount,
           scrollTopBefore: beforeMetrics.scrollTop,
           scrollTopAfter: currentMetrics.scrollTop,
           scrollHeightBefore: beforeMetrics.scrollHeight,
           scrollHeightAfter: currentMetrics.scrollHeight,
           clientHeight: currentMetrics.clientHeight,
-          visibleTurns: currentTurnRange.totalTurnsInDom,
+          visibleTurnsCount: currentTurnRange.totalTurnsInDom,
           earliestVisibleTurn: currentTurnRange.earliestTurnId,
           latestVisibleTurn: currentTurnRange.latestTurnId,
+          visibleTurnIds: currentTurnRange.turnIds.join(', '),
           isAtTop: currentMetrics.isAtTop,
         });
 

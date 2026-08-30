@@ -25,23 +25,29 @@ export function isStableMessageId(id: string | undefined): boolean {
   return true;
 }
 
-/**
- * Deduplicates messages collected across multiple virtualized scroll windows.
- * Priority of deduplication:
- * 1. Stable explicit message ID (e.g. node UUID or provider data-message-id)
- * 2. Combined role + exact content fingerprint
- *
- * Preserves chronological order (oldest to newest).
- */
-export function deduplicateMessages(
+export type DeduplicationAudit = {
+  totalIncoming: number;
+  totalExisting: number;
+  retainedCount: number;
+  skippedDuplicateIdCount: number;
+  skippedDuplicateFingerprintCount: number;
+  stableIdCount: number;
+  fallbackIdCount: number;
+};
+
+export function deduplicateMessagesWithAudit(
   existingMessages: NormalizedMessage[],
   incomingMessages: NormalizedMessage[]
-): NormalizedMessage[] {
+): { messages: NormalizedMessage[]; audit: DeduplicationAudit } {
   const seenIds = new Set<string>();
   const seenFingerprints = new Set<string>();
   const merged: NormalizedMessage[] = [];
 
-  // Combine lists: existing first (older or incoming window), then incoming
+  let skippedDuplicateIdCount = 0;
+  let skippedDuplicateFingerprintCount = 0;
+  let stableIdCount = 0;
+  let fallbackIdCount = 0;
+
   const allMessages = [...existingMessages, ...incomingMessages];
 
   for (const msg of allMessages) {
@@ -49,12 +55,16 @@ export function deduplicateMessages(
     const fingerprint = computeContentFingerprint(msg);
 
     if (hasMeaningfulId) {
+      stableIdCount++;
       if (seenIds.has(msg.id)) {
+        skippedDuplicateIdCount++;
         continue;
       }
       seenIds.add(msg.id);
     } else {
+      fallbackIdCount++;
       if (seenFingerprints.has(fingerprint)) {
+        skippedDuplicateFingerprintCount++;
         continue;
       }
     }
@@ -63,7 +73,25 @@ export function deduplicateMessages(
     merged.push(msg);
   }
 
-  return merged;
+  return {
+    messages: merged,
+    audit: {
+      totalIncoming: incomingMessages.length,
+      totalExisting: existingMessages.length,
+      retainedCount: merged.length,
+      skippedDuplicateIdCount,
+      skippedDuplicateFingerprintCount,
+      stableIdCount,
+      fallbackIdCount,
+    },
+  };
+}
+
+export function deduplicateMessages(
+  existingMessages: NormalizedMessage[],
+  incomingMessages: NormalizedMessage[]
+): NormalizedMessage[] {
+  return deduplicateMessagesWithAudit(existingMessages, incomingMessages).messages;
 }
 
 /**

@@ -11,6 +11,7 @@ export type VisibleTurnRange = {
   totalTurnsInDom: number;
   earliestTurnId: string;
   latestTurnId: string;
+  turnIds: string[];
 };
 
 /**
@@ -121,7 +122,7 @@ export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
   );
 
   if (turns.length === 0) {
-    return { totalTurnsInDom: 0, earliestTurnId: 'none', latestTurnId: 'none' };
+    return { totalTurnsInDom: 0, earliestTurnId: 'none', latestTurnId: 'none', turnIds: [] };
   }
 
   const getTurnId = (el: HTMLElement, index: number) => {
@@ -133,10 +134,13 @@ export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
     );
   };
 
+  const turnIds = turns.map((t, idx) => getTurnId(t, idx));
+
   return {
     totalTurnsInDom: turns.length,
-    earliestTurnId: getTurnId(turns[0], 0),
-    latestTurnId: getTurnId(turns[turns.length - 1], turns.length - 1),
+    earliestTurnId: turnIds[0] || 'none',
+    latestTurnId: turnIds[turnIds.length - 1] || 'none',
+    turnIds,
   };
 }
 
