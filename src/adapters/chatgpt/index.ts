@@ -1,4 +1,5 @@
 import { AIProviderAdapter, ConversationState, ExtractionOptions, ExtractionResult, InjectionResult } from '../types.ts';
+import { ProviderId } from '../../core/models/conversation.ts';
 import { isChatGPTUrl, detectChatGPTState } from './detector.ts';
 import { extractChatGPTConversation } from './extractor.ts';
 import { waitForChatGPTInput, injectChatGPT } from './injector.ts';
@@ -8,6 +9,7 @@ export class ChatGPTAdapter implements AIProviderAdapter {
   public readonly name = 'ChatGPT';
   public readonly brandColor = '#10A37F';
   public readonly hostnames = ['chatgpt.com', 'chat.openai.com'];
+  public readonly supportedDestinations: ProviderId[] = ['claude', 'gemini'];
 
   public matches(url: URL): boolean {
     return isChatGPTUrl(url);

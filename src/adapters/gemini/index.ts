@@ -5,6 +5,7 @@ import {
   ExtractionResult,
   InjectionResult,
 } from '../types.ts';
+import { ProviderId } from '../../core/models/conversation.ts';
 import { isGeminiUrl, detectGeminiState } from './detector.ts';
 import { extractGeminiConversation } from './extractor.ts';
 import { waitForGeminiInput, injectGemini } from './injector.ts';
@@ -14,6 +15,7 @@ export class GeminiAdapter implements AIProviderAdapter {
   public readonly name = 'Gemini';
   public readonly brandColor = '#1A73E8';
   public readonly hostnames = ['gemini.google.com', 'bard.google.com'];
+  public readonly supportedDestinations: ProviderId[] = ['chatgpt', 'claude'];
 
   public matches(url: URL): boolean {
     return isGeminiUrl(url);

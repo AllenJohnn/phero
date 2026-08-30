@@ -1,8 +1,5 @@
 import {
-  NormalizedConversation,
-  NormalizedMessage,
   ContentBlock,
-  Role,
 } from '../../core/models/conversation.ts';
 import { ExtractionOptions, ExtractionResult } from '../types.ts';
 import { detectGeminiState } from './detector.ts';
@@ -120,108 +117,38 @@ export function extractGeminiContentBlocks(element: HTMLElement): ContentBlock[]
   return blocks;
 }
 
+import { GeminiCaptureStrategy } from './capture.ts';
+import { CaptureOrchestrator } from '../../core/capture/orchestrator.ts';
+
 /**
  * Multi-tier extractor for Google Gemini conversations.
+ * Uses incremental scrolling and deduplication to recover virtualized history.
  */
 export async function extractGeminiConversation(
   doc: Document,
-  _options: ExtractionOptions = {}
+  options: ExtractionOptions = {}
 ): Promise<ExtractionResult> {
   const state = detectGeminiState(doc);
   Logger.info('Extracting Gemini conversation', { isAvailable: state.isAvailable });
 
-  const messages: NormalizedMessage[] = [];
-
-  // Tier 1: Search for unified conversation turn containers
-  const turnElements = Array.from(
-    doc.querySelectorAll<HTMLElement>(
-      'conversation-turn, div[data-test-id="conversation-turn"], .conversation-turn'
-    )
+  const strategy = new GeminiCaptureStrategy();
+  const captureResult = await CaptureOrchestrator.executeCapture(
+    doc,
+    strategy,
+    {
+      providerId: 'gemini',
+      conversationId: state.conversationId,
+      title: state.title,
+    },
+    {
+      skipIncompleteCheck: options.skipIncompleteCheck,
+    }
   );
 
-  if (turnElements.length > 0) {
-    let turnIndex = 0;
-    for (const turnEl of turnElements) {
-      turnIndex++;
-      const isAssistant =
-        turnEl.querySelector('model-response, .response-container, message-content, div.markdown') ||
-        turnEl.classList.contains('model-turn');
-
-      const role: Role = isAssistant ? 'assistant' : 'user';
-      const bodyContainer =
-        turnEl.querySelector<HTMLElement>(
-          'message-content, .response-container, .query-content, div.markdown'
-        ) || turnEl;
-
-      const content = extractGeminiContentBlocks(bodyContainer);
-      if (content.length > 0) {
-        messages.push({
-          id: `gemini-turn-${turnIndex}`,
-          role,
-          content,
-          timestamp: Date.now(),
-        });
-      }
-    }
-  } else {
-    // Tier 2: Search for user queries and model responses individually
-    const userElements = Array.from(
-      doc.querySelectorAll<HTMLElement>(
-        'user-query, .user-query-container, div[data-test-id="user-query"]'
-      )
-    );
-    const assistantElements = Array.from(
-      doc.querySelectorAll<HTMLElement>(
-        'model-response, .response-container, div[data-test-id="model-response"]'
-      )
-    );
-
-    const maxLen = Math.max(userElements.length, assistantElements.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (userElements[i]) {
-        const content = extractGeminiContentBlocks(userElements[i]);
-        if (content.length > 0) {
-          messages.push({
-            id: `gemini-user-${i + 1}`,
-            role: 'user',
-            content,
-            timestamp: Date.now(),
-          });
-        }
-      }
-      if (assistantElements[i]) {
-        const content = extractGeminiContentBlocks(assistantElements[i]);
-        if (content.length > 0) {
-          messages.push({
-            id: `gemini-assistant-${i + 1}`,
-            role: 'assistant',
-            content,
-            timestamp: Date.now(),
-          });
-        }
-      }
-    }
-  }
-
-  const conversation: NormalizedConversation = {
-    id: state.conversationId,
-    title: state.title,
-    sourceProvider: 'gemini',
-    createdAt: Date.now(),
-    messages,
-    metadata: {
-      url: doc.location?.href,
-      totalDetectedTurns: messages.length,
-      extractedTurns: messages.length,
-      isTruncated: false,
-    },
-  };
-
-  Logger.info(`Extracted ${messages.length} messages from Gemini`);
-
   return {
-    conversation,
-    isComplete: true,
-    totalTurnsDetected: messages.length,
+    conversation: captureResult.conversation,
+    isComplete: captureResult.isComplete,
+    warning: captureResult.warning,
+    totalTurnsDetected: captureResult.totalCaptured,
   };
 }

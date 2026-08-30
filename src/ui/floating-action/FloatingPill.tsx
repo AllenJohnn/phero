@@ -86,7 +86,8 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
 
       setPreparedPayload(payload);
       setStatus('opening_destination');
-      const destName = destination === 'gemini' ? 'Gemini' : destination === 'claude' ? 'Claude' : destination === 'chatgpt' ? 'ChatGPT' : 'destination';
+      const destAdapter = registry.getAdapter(destination);
+      const destName = destAdapter ? destAdapter.name : 'destination';
       setStatusText(`Opening ${destName}…`);
 
       // Dispatch to background script

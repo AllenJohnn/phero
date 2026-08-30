@@ -33,6 +33,7 @@ export interface AIProviderAdapter {
   readonly name: string;
   readonly brandColor: string;
   readonly hostnames: string[];
+  readonly supportedDestinations: ProviderId[];
 
   /**
    * Checks if current URL belongs to this provider.

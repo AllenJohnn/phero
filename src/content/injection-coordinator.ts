@@ -26,15 +26,14 @@ export class InjectionCoordinator {
         handoffId: handoff.handoffId,
       });
 
-      const destName = destinationProvider === 'chatgpt' ? 'ChatGPT' : destinationProvider === 'gemini' ? 'Gemini' : destinationProvider === 'claude' ? 'Claude' : destinationProvider;
-      this.showStatusBanner(`Preparing ${destName}…`, 'loading');
-
       const registry = AdapterRegistry.getInstance();
       const adapter = registry.getAdapter(destinationProvider);
 
       if (!adapter) {
         throw new Error(`No adapter found for destination: ${destinationProvider}`);
       }
+
+      this.showStatusBanner(`Preparing ${adapter.name}…`, 'loading');
 
       // Execute injection
       const result = await adapter.injectPrompt(document, handoff.continuationPrompt);
@@ -116,8 +115,8 @@ export class InjectionCoordinator {
     document.body.appendChild(host);
 
     const shadow = host.attachShadow({ mode: 'open' });
-
-    const destName = handoff.destinationProvider === 'chatgpt' ? 'ChatGPT' : handoff.destinationProvider === 'gemini' ? 'Gemini' : handoff.destinationProvider === 'claude' ? 'Claude' : handoff.destinationProvider;
+    const destAdapter = AdapterRegistry.getInstance().getAdapter(handoff.destinationProvider);
+    const destName = destAdapter ? destAdapter.name : handoff.destinationProvider;
     shadow.innerHTML = `
       <style>
         :host {

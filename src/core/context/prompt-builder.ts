@@ -1,5 +1,6 @@
 import { NormalizedConversation, NormalizedMessage, ContentBlock } from '../models/conversation.ts';
 import { partitionConversation, BudgetConfig, DEFAULT_BUDGET_CONFIG } from './budget.ts';
+import { AdapterRegistry } from '../../adapters/registry.ts';
 
 export type PromptBuilderOptions = {
   budgetConfig?: BudgetConfig;
@@ -44,8 +45,14 @@ export function buildContinuationPrompt(
     return `You are continuing an ongoing conversation transferred from another AI assistant.\n\nSource: ${conversation.sourceProvider}\n\nPlease ask how you can help continue the conversation.`;
   }
 
-  const { recentMessages, earlierMessages, extractedCodeBlocks, extractedConstraints } =
-    partitionConversation(messages, budgetConfig);
+  const {
+    recentMessages,
+    earlierMessages,
+    extractedCodeBlocks,
+    extractedConstraints,
+    extractedDecisions,
+    extractedUnresolvedIssues,
+  } = partitionConversation(messages, budgetConfig);
 
   // Find the last user request
   let lastUserMessage: NormalizedMessage | undefined;
@@ -64,12 +71,8 @@ export function buildContinuationPrompt(
   );
 
   // === CONTEXT ===
-  const providerDisplay =
-    conversation.sourceProvider === 'chatgpt'
-      ? 'ChatGPT'
-      : conversation.sourceProvider === 'claude'
-      ? 'Claude'
-      : 'Gemini';
+  const registry = AdapterRegistry.getInstance();
+  const providerDisplay = registry.getAdapter(conversation.sourceProvider)?.name || conversation.sourceProvider;
 
   let contextHeader = `=== CONTEXT ===\nSource: ${providerDisplay}`;
   if (conversation.title) {
@@ -77,12 +80,28 @@ export function buildContinuationPrompt(
   }
   sections.push(contextHeader);
 
-  // === IMPORTANT CONTEXT === (Constraints & requirements)
+  // === IMPORTANT CONTEXT === (Constraints, requirements, and key decisions)
   const importantContextItems: string[] = [];
   if (extractedConstraints.length > 0) {
     importantContextItems.push('Project Requirements & Constraints:');
     for (const c of extractedConstraints.slice(0, 10)) {
       importantContextItems.push(`- ${c}`);
+    }
+  }
+
+  if (extractedDecisions.length > 0) {
+    if (importantContextItems.length > 0) importantContextItems.push('');
+    importantContextItems.push('Key Decisions & Agreed Architecture:');
+    for (const d of extractedDecisions.slice(0, 8)) {
+      importantContextItems.push(`- ${d}`);
+    }
+  }
+
+  if (extractedUnresolvedIssues.length > 0) {
+    if (importantContextItems.length > 0) importantContextItems.push('');
+    importantContextItems.push('Unresolved Issues & Blockers:');
+    for (const issue of extractedUnresolvedIssues.slice(0, 6)) {
+      importantContextItems.push(`- ${issue}`);
     }
   }
 
@@ -99,7 +118,7 @@ export function buildContinuationPrompt(
   // === PREVIOUS WORK === (Code blocks and key outputs from earlier in the chat)
   if (extractedCodeBlocks.length > 0) {
     const codeSections: string[] = [];
-    for (let i = 0; i < Math.min(extractedCodeBlocks.length, 5); i++) {
+    for (let i = 0; i < Math.min(extractedCodeBlocks.length, 6); i++) {
       const b = extractedCodeBlocks[i];
       codeSections.push(`Code Reference ${i + 1} (${b.language || 'code'}):\n\`\`\`${b.language || ''}\n${b.code}\n\`\`\``);
     }

@@ -1,8 +1,5 @@
 import {
-  NormalizedConversation,
-  NormalizedMessage,
   ContentBlock,
-  Role,
 } from '../../core/models/conversation.ts';
 import { ExtractionOptions, ExtractionResult } from '../types.ts';
 import { detectClaudeState } from './detector.ts';
@@ -232,14 +229,18 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
   return blocks;
 }
 
+import { ClaudeCaptureStrategy } from './capture.ts';
+import { CaptureOrchestrator } from '../../core/capture/orchestrator.ts';
+
 /**
  * Multi-tier extractor for Claude conversations.
  * Handles turn containers, role detection, code blocks, tables, artifacts,
  * and strips thinking blocks, UI noise, and provider controls.
+ * Uses incremental scrolling and deduplication to recover virtualized history.
  */
 export async function extractClaudeConversation(
   doc: Document,
-  _options: ExtractionOptions = {}
+  options: ExtractionOptions = {}
 ): Promise<ExtractionResult> {
   const state = detectClaudeState(doc);
   Logger.info('Extracting Claude conversation', {
@@ -247,132 +248,24 @@ export async function extractClaudeConversation(
     messageCount: state.messageCount ?? 0,
   });
 
-  const messages: NormalizedMessage[] = [];
-  let isComplete = state.isHistoryFullyLoaded ?? true;
-  let warning: string | undefined;
-
-  // Tier 1: Structured turn containers with data attributes
-  let turnElements = Array.from(
-    doc.querySelectorAll<HTMLElement>(
-      'div[data-test-render-count], div[data-testid="chat-message"]'
-    )
+  const strategy = new ClaudeCaptureStrategy();
+  const captureResult = await CaptureOrchestrator.executeCapture(
+    doc,
+    strategy,
+    {
+      providerId: 'claude',
+      conversationId: state.conversationId,
+      title: state.title,
+    },
+    {
+      skipIncompleteCheck: options.skipIncompleteCheck,
+    }
   );
 
-  // Tier 2: group/message containers
-  if (turnElements.length === 0) {
-    turnElements = Array.from(
-      doc.querySelectorAll<HTMLElement>('div.group\\/message')
-    );
-  }
-
-  if (turnElements.length > 0) {
-    let turnIndex = 0;
-    for (const turnEl of turnElements) {
-      turnIndex++;
-
-      // Determine role
-      const isAssistant =
-        !!turnEl.querySelector('.font-claude-message') ||
-        !!turnEl.querySelector('div.standard-markdown') ||
-        turnEl.classList.contains('font-claude-message') ||
-        !!turnEl.querySelector('[data-message-author-role="assistant"]') ||
-        !!turnEl.querySelector('.agent-turn');
-
-      const isUser =
-        !!turnEl.querySelector('.font-user-message') ||
-        !!turnEl.querySelector('[data-message-author-role="user"]') ||
-        turnEl.classList.contains('font-user-message');
-
-      let role: Role;
-      if (isAssistant) {
-        role = 'assistant';
-      } else if (isUser) {
-        role = 'user';
-      } else {
-        // Fallback: alternate turns starting with user
-        role = turnIndex % 2 === 1 ? 'user' : 'assistant';
-      }
-
-      const blocks = extractClaudeContentBlocks(turnEl);
-
-      if (blocks.length > 0) {
-        messages.push({
-          id: `claude-turn-${turnIndex}`,
-          role,
-          content: blocks,
-          timestamp: Date.now(),
-        });
-      }
-    }
-  } else {
-    // Tier 3 Fallback: separate user/assistant element searches
-    const userTurns = Array.from(
-      doc.querySelectorAll<HTMLElement>(
-        '.font-user-message, div[data-is-streaming="false"]:has(.font-user-message), div.whitespace-pre-wrap'
-      )
-    );
-    const assistantTurns = Array.from(
-      doc.querySelectorAll<HTMLElement>(
-        '.font-claude-message, div.standard-markdown'
-      )
-    );
-
-    const maxLen = Math.max(userTurns.length, assistantTurns.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (userTurns[i]) {
-        const blocks = extractClaudeContentBlocks(userTurns[i]);
-        if (blocks.length > 0) {
-          messages.push({
-            id: `claude-user-${i + 1}`,
-            role: 'user',
-            content: blocks,
-            timestamp: Date.now(),
-          });
-        }
-      }
-      if (assistantTurns[i]) {
-        const blocks = extractClaudeContentBlocks(assistantTurns[i]);
-        if (blocks.length > 0) {
-          messages.push({
-            id: `claude-assistant-${i + 1}`,
-            role: 'assistant',
-            content: blocks,
-            timestamp: Date.now(),
-          });
-        }
-      }
-    }
-  }
-
-  // Check completeness
-  if (!isComplete || (state.messageCount && state.messageCount > 0 && messages.length < state.messageCount)) {
-    isComplete = false;
-    warning = 'Some earlier messages may not be loaded in the page view.';
-  }
-
-  const conversation: NormalizedConversation = {
-    id: state.conversationId,
-    title: state.title,
-    sourceProvider: 'claude',
-    createdAt: Date.now(),
-    messages,
-    metadata: {
-      url: doc.location?.href,
-      totalDetectedTurns: state.messageCount || messages.length,
-      extractedTurns: messages.length,
-      isTruncated: !isComplete,
-    },
-  };
-
-  Logger.info(`Extracted ${messages.length} messages from Claude`, {
-    isComplete,
-    hasWarning: !!warning,
-  });
-
   return {
-    conversation,
-    isComplete,
-    warning,
-    totalTurnsDetected: messages.length,
+    conversation: captureResult.conversation,
+    isComplete: captureResult.isComplete,
+    warning: captureResult.warning,
+    totalTurnsDetected: captureResult.totalCaptured,
   };
 }

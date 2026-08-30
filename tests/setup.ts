@@ -1,5 +1,15 @@
 import '@testing-library/jest-dom';
 
+// JSDOM scroll polyfills
+if (typeof window !== 'undefined') {
+  if (!window.scrollTo) {
+    window.scrollTo = vi.fn();
+  }
+  if (!window.scrollBy) {
+    window.scrollBy = vi.fn();
+  }
+}
+
 // Polyfill chrome extension APIs for testing environment
 const mockStorageSession: Record<string, any> = {};
 const mockStorageLocal: Record<string, any> = {};

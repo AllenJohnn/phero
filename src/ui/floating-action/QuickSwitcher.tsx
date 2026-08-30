@@ -1,6 +1,7 @@
 import React from 'react';
 import { ProviderId } from '../../core/models/conversation.ts';
 import { ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow } from '../icons/index.tsx';
+import { AdapterRegistry } from '../../adapters/registry.ts';
 
 export type QuickSwitcherProps = {
   sourceProvider: ProviderId;
@@ -13,31 +14,20 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
   onSelectDestination,
   onClose,
 }) => {
-  const destinations: { id: ProviderId; name: string; icon: React.ReactNode }[] = [];
+  const registry = AdapterRegistry.getInstance();
+  const currentAdapter = registry.getAdapter(sourceProvider);
+  const destinations = currentAdapter
+    ? currentAdapter.supportedDestinations.map(id => registry.getAdapter(id)!).filter(Boolean)
+    : [];
 
-  if (sourceProvider !== 'claude') {
-    destinations.push({
-      id: 'claude',
-      name: 'Claude',
-      icon: <ClaudeLogo size={15} />,
-    });
-  }
-
-  if (sourceProvider !== 'gemini') {
-    destinations.push({
-      id: 'gemini',
-      name: 'Gemini',
-      icon: <GeminiLogo size={15} />,
-    });
-  }
-
-  if (sourceProvider !== 'chatgpt') {
-    destinations.push({
-      id: 'chatgpt',
-      name: 'ChatGPT',
-      icon: <ChatGPTLogo size={15} />,
-    });
-  }
+  const getIcon = (id: ProviderId) => {
+    switch(id) {
+      case 'claude': return <ClaudeLogo size={15} />;
+      case 'chatgpt': return <ChatGPTLogo size={15} />;
+      case 'gemini': return <GeminiLogo size={15} />;
+      default: return null;
+    }
+  };
 
   return (
     <div
@@ -57,17 +47,17 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
       </div>
 
       <div className="space-y-1">
-        {destinations.map((dest) => (
+        {destinations.map((destAdapter) => (
           <button
-            key={dest.id}
-            onClick={() => onSelectDestination(dest.id)}
+            key={destAdapter.id}
+            onClick={() => onSelectDestination(destAdapter.id)}
             className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium text-[#EDEDEF] bg-[#111113] hover:bg-[#18181B] border border-[#232326] hover:border-[#36363A] transition-all duration-150 text-left group cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center w-4 h-4">
-                {dest.icon}
+                {getIcon(destAdapter.id)}
               </div>
-              <span className="font-medium text-[#F4F4F6]">{dest.name}</span>
+              <span className="font-medium text-[#F4F4F6]">{destAdapter.name}</span>
             </div>
             <TransitArrow
               size={12}

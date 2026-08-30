@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ProviderId } from '../../core/models/conversation.ts';
 import { PheroLogo, ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.tsx';
 import { Logger } from '../../shared/logger.ts';
+import { AdapterRegistry } from '../../adapters/registry.ts';
 
 export const Popup: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -150,86 +151,38 @@ export const Popup: React.FC = () => {
             Continue in
           </div>
 
-          {providerId !== 'claude' && (
-            <button
-              onClick={() => handleTriggerHandoff('claude')}
-              disabled={transferring}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-4 h-4">
-                  <ClaudeLogo size={15} />
+          {providerId && AdapterRegistry.getInstance().getAdapter(providerId)?.supportedDestinations.map((destId) => {
+            const destAdapter = AdapterRegistry.getInstance().getAdapter(destId)!;
+            return (
+              <button
+                key={destAdapter.id}
+                onClick={() => handleTriggerHandoff(destAdapter.id)}
+                disabled={transferring}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-4 h-4">
+                    {destAdapter.id === 'claude' && <ClaudeLogo size={15} />}
+                    {destAdapter.id === 'chatgpt' && <ChatGPTLogo size={15} />}
+                    {destAdapter.id === 'gemini' && <GeminiLogo size={15} />}
+                  </div>
+                  <span className="text-xs font-medium text-[#F4F4F6]">
+                    {destAdapter.name}
+                  </span>
                 </div>
-                <span className="text-xs font-medium text-[#F4F4F6]">
-                  Claude
-                </span>
-              </div>
-              {transferring && pendingDest === 'claude' ? (
-                <SpinnerIcon size={13} className="text-[#D97706]" />
-              ) : transferSuccess && pendingDest === 'claude' ? (
-                <CheckIcon size={13} className="text-[#10A37F]" />
-              ) : (
-                <TransitArrow
-                  size={13}
-                  className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
-                />
-              )}
-            </button>
-          )}
-
-          {providerId !== 'gemini' && (
-            <button
-              onClick={() => handleTriggerHandoff('gemini')}
-              disabled={transferring}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-4 h-4">
-                  <GeminiLogo size={15} />
-                </div>
-                <span className="text-xs font-medium text-[#F4F4F6]">
-                  Gemini
-                </span>
-              </div>
-              {transferring && pendingDest === 'gemini' ? (
-                <SpinnerIcon size={13} className="text-[#1A73E8]" />
-              ) : transferSuccess && pendingDest === 'gemini' ? (
-                <CheckIcon size={13} className="text-[#10A37F]" />
-              ) : (
-                <TransitArrow
-                  size={13}
-                  className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
-                />
-              )}
-            </button>
-          )}
-
-          {providerId !== 'chatgpt' && (
-            <button
-              onClick={() => handleTriggerHandoff('chatgpt')}
-              disabled={transferring}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#111113] border border-[#232326] hover:bg-[#18181B] hover:border-[#36363A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-600 transition-all duration-150 cursor-pointer group text-left"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-4 h-4">
-                  <ChatGPTLogo size={15} />
-                </div>
-                <span className="text-xs font-medium text-[#F4F4F6]">
-                  ChatGPT
-                </span>
-              </div>
-              {transferring && pendingDest === 'chatgpt' ? (
-                <SpinnerIcon size={13} className="text-[#10A37F]" />
-              ) : transferSuccess && pendingDest === 'chatgpt' ? (
-                <CheckIcon size={13} className="text-[#10A37F]" />
-              ) : (
-                <TransitArrow
-                  size={13}
-                  className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
-                />
-              )}
-            </button>
-          )}
+                {transferring && pendingDest === destAdapter.id ? (
+                  <SpinnerIcon size={13} className="text-[#3B82F6]" />
+                ) : transferSuccess && pendingDest === destAdapter.id ? (
+                  <CheckIcon size={13} className="text-[#10A37F]" />
+                ) : (
+                  <TransitArrow
+                    size={13}
+                    className="text-[#52525B] group-hover:text-[#D4D4D8] group-hover:translate-x-0.5 transition-all duration-150"
+                  />
+                )}
+              </button>
+            );
+          })}
 
           {errorText && (
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg leading-snug">
