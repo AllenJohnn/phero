@@ -76,14 +76,14 @@ describe('Claude Adapter', () => {
     it('extracts correct number of turns (4 messages)', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
       expect(result.conversation.messages.length).toBe(4);
     });
 
     it('assigns correct user/assistant roles for all turns', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       expect(result.conversation.messages[0].role).toBe('user');
       expect(result.conversation.messages[1].role).toBe('assistant');
@@ -94,7 +94,7 @@ describe('Claude Adapter', () => {
     it('preserves TypeScript code blocks with language identifier', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       // Turn 2 (assistant) should contain a TypeScript code block
       const assistantMsg = result.conversation.messages[1];
@@ -109,7 +109,7 @@ describe('Claude Adapter', () => {
     it('extracts markdown table as text block with pipe-delimited content', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       const assistantMsg = result.conversation.messages[1];
       const tableBlock = assistantMsg.content.find(
@@ -123,7 +123,7 @@ describe('Claude Adapter', () => {
     it('strips UI noise: Copy code, Good response, Copied!', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       const allText = result.conversation.messages
         .flatMap((m) => m.content.map((b) => (b.type === 'text' ? b.text : '')))
@@ -136,7 +136,7 @@ describe('Claude Adapter', () => {
     it('strips thinking/reasoning blocks', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       const allText = result.conversation.messages
         .flatMap((m) => m.content.map((b) => (b.type === 'text' ? b.text : '')))
@@ -147,7 +147,7 @@ describe('Claude Adapter', () => {
     it('extracts artifact content from artifact containers', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       // Turn 4 (assistant) has an artifact
       const artifactMsg = result.conversation.messages[3];
@@ -162,7 +162,7 @@ describe('Claude Adapter', () => {
     it('strips artifact view buttons', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
 
       const allText = result.conversation.messages
         .flatMap((m) => m.content.map((b) => (b.type === 'text' ? b.text : '')))
@@ -173,7 +173,7 @@ describe('Claude Adapter', () => {
     it('sets sourceProvider to "claude" in normalized conversation', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
       expect(result.conversation.sourceProvider).toBe('claude');
     });
   });
@@ -184,14 +184,14 @@ describe('Claude Adapter', () => {
     it('complete fixture returns isComplete: true', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
       expect(result.isComplete).toBe(true);
     });
 
     it('incomplete fixture returns isComplete: false with warning', async () => {
       const html = loadFixture('claude-incomplete.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/incomplete-conv-id' });
-      const result = await extractClaudeConversation(dom.window.document);
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
       expect(result.isComplete).toBe(false);
       expect(result.warning).toBeDefined();
       expect(result.warning).toContain('earlier messages');

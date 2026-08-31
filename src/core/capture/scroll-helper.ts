@@ -171,41 +171,47 @@ export async function executeScrollUp(
     )
   );
 
-  // 2. Relative scroll decrement
+  // 2. Smart relative scroll decrement
   if (container instanceof HTMLElement) {
     const clientH = container.clientHeight || 800;
-    const scrollStep =
-      container.scrollTop > 30000
-        ? Math.min(1000, Math.max(600, Math.floor(clientH * 0.85)))
-        : Math.min(750, Math.max(350, Math.floor(clientH * 0.7)));
+    let targetScrollTop = container.scrollTop - clientH * 0.8;
 
-    // When near top (e.g. scrollTop < 2000) or if earliest turn exists, scroll earliest turn into view
-    // so virtualizer intersection observer fires
-    if (turns.length > 0 && container.scrollTop < 2500) {
+    // Smart Jump: If we know the earliest turn in the DOM, we've already captured it entirely.
+    // We can jump the viewport directly to the top of that turn, placing it at the bottom of the new viewport.
+    if (turns.length > 0) {
       const topTurn = turns[0];
-      try {
-        topTurn.scrollIntoView({ block: 'start', behavior: 'auto' });
-      } catch {
-        // Fallback
+      const containerRect = container.getBoundingClientRect();
+      const topTurnRect = topTurn.getBoundingClientRect();
+      
+      // Calculate where the top of the earliest turn is, relative to the scroll container's top
+      const relativeTop = topTurnRect.top - containerRect.top;
+      const topTurnAbsoluteTop = container.scrollTop + relativeTop;
+
+      const buffer = 150; 
+      const smartTarget = topTurnAbsoluteTop - clientH + buffer;
+
+      // Only use smart target if it advances us upward (less than current scrollTop)
+      // Limit the max jump to 15000px per step for safety against crazy DOM measurements.
+      if (smartTarget < container.scrollTop) {
+        targetScrollTop = Math.max(container.scrollTop - 15000, smartTarget);
       }
     }
 
-    container.scrollTop = Math.max(0, container.scrollTop - scrollStep);
+    container.scrollTop = Math.max(0, targetScrollTop);
     container.dispatchEvent(new Event('scroll', { bubbles: true }));
   } else if (typeof window !== 'undefined') {
     const clientH = window.innerHeight || 800;
-    const currentY = window.scrollY || doc.documentElement.scrollTop || 0;
-    const scrollStep =
-      currentY > 30000
-        ? Math.min(1000, Math.max(600, Math.floor(clientH * 0.85)))
-        : Math.min(750, Math.max(350, Math.floor(clientH * 0.7)));
+    let scrollStep = clientH * 0.8;
 
-    if (turns.length > 0 && currentY < 2500) {
+    if (turns.length > 0) {
       const topTurn = turns[0];
-      try {
-        topTurn.scrollIntoView({ block: 'start', behavior: 'auto' });
-      } catch {
-        // Fallback
+      const topTurnRect = topTurn.getBoundingClientRect();
+      
+      const buffer = 150;
+      const smartStep = -topTurnRect.top + clientH - buffer;
+
+      if (smartStep > 0) {
+        scrollStep = Math.min(15000, Math.max(scrollStep, smartStep));
       }
     }
 

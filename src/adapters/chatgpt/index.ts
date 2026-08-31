@@ -44,4 +44,8 @@ export class ChatGPTAdapter implements AIProviderAdapter {
   public async injectPrompt(doc: Document, prompt: string): Promise<InjectionResult> {
     return injectChatGPT(doc, prompt);
   }
+
+  public startDiagnostics(doc: Document): void {
+    startManualScrollDiagnostics(doc);
+  }
 }

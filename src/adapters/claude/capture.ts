@@ -1,7 +1,7 @@
 import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
 import { ProviderCaptureStrategy } from '../../core/capture/types.ts';
 import { extractClaudeContentBlocks } from './extractor.ts';
-import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.ts';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics, VisibleTurnRange } from '../../core/capture/scroll-helper.ts';
 
 export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
   public readonly providerId = 'claude' as const;
@@ -143,13 +143,16 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
     await executeScrollUp(doc, container);
   }
 
-  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {
+  public async waitForNewMessages(
+    doc: Document,
+    beforeTurnRange: VisibleTurnRange,
+    timeoutMs = 2500): Promise<boolean> {
     const startTime = Date.now();
     return new Promise((resolve) => {
       const check = () => {
         const currentCount = doc.querySelectorAll('div[data-test-render-count], div.group\\/message').length;
-        if (currentCount !== previousCount || Date.now() - startTime >= timeoutMs) {
-          resolve(currentCount !== previousCount);
+        if (currentCount !== beforeTurnRange.totalTurnsInDom || Date.now() - startTime >= timeoutMs) {
+          resolve(currentCount !== beforeTurnRange.totalTurnsInDom);
           return;
         }
         requestAnimationFrame(check);

@@ -12,6 +12,7 @@ export type ConversationState = {
 export type ExtractionOptions = {
   maxTurns?: number;
   skipIncompleteCheck?: boolean;
+  scrollDelayMs?: number;
 };
 
 export type ExtractionResult = {
@@ -64,4 +65,9 @@ export interface AIProviderAdapter {
    * Injects the continuation prompt into the composer and verifies injection.
    */
   injectPrompt(document: Document, prompt: string): Promise<InjectionResult>;
+
+  /**
+   * Starts logging diagnostic information about the page state.
+   */
+  startDiagnostics?(document: Document): void;
 }

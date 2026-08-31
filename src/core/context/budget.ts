@@ -6,8 +6,8 @@ export type BudgetConfig = {
 };
 
 export const DEFAULT_BUDGET_CONFIG: BudgetConfig = {
-  maxCharacters: 32000,
-  verbatimRecentTurnsCount: 6,
+  maxCharacters: 120000, // Approx 30,000 tokens, safe for Claude/ChatGPT/Gemini input boxes
+  verbatimRecentTurnsCount: 15, // Keep last 15 turns 100% intact before they count as 'history'
 };
 
 export type PartitionedMessages = {

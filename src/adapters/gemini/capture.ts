@@ -117,13 +117,16 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
     await executeScrollUp(doc, container);
   }
 
-  public async waitForNewMessages(doc: Document, previousCount: number, timeoutMs = 350): Promise<boolean> {
+  public async waitForNewMessages(
+    doc: Document,
+    beforeTurnRange: import('../../core/capture/scroll-helper.ts').VisibleTurnRange,
+    timeoutMs = 2500): Promise<boolean> {
     const startTime = Date.now();
     return new Promise((resolve) => {
       const check = () => {
         const currentCount = doc.querySelectorAll('conversation-turn, user-query').length;
-        if (currentCount !== previousCount || Date.now() - startTime >= timeoutMs) {
-          resolve(currentCount !== previousCount);
+        if (currentCount !== beforeTurnRange.totalTurnsInDom || Date.now() - startTime >= timeoutMs) {
+          resolve(currentCount !== beforeTurnRange.totalTurnsInDom);
           return;
         }
         requestAnimationFrame(check);

@@ -125,23 +125,54 @@ export function buildContinuationPrompt(
     sections.push(`=== PREVIOUS WORK ===\n${codeSections.join('\n\n')}`);
   }
 
-  // === RECENT CONVERSATION ===
+  // Determine budget usage before adding conversation history
+  const baseSections = sections.join('\n\n');
   const recentTurnsFormatted = recentMessages.map(formatMessageTurn).join('\n\n---\n\n');
+  const currentRequestText = lastUserMessage ? `=== CURRENT REQUEST ===\n${formatContentBlocks(lastUserMessage.content)}` : '';
+  const instructionsText = '=== INSTRUCTIONS ===\nContinue directly from where the previous assistant stopped.\nDo not restart the task.\nDo not ask the user to repeat information already provided.\nUse the supplied context as the working context for this conversation.';
+  
+  const mandatoryLength = baseSections.length + recentTurnsFormatted.length + currentRequestText.length + instructionsText.length + 100;
+  
+  // === CONVERSATION HISTORY ===
+  if (earlierMessages.length > 0) {
+    let availableBudget = budgetConfig.maxCharacters - mandatoryLength;
+    if (availableBudget > 1000) {
+      const messagesToInclude: string[] = [];
+      let omittedCount = 0;
+      
+      // Work backwards from the most recent 'earlier' message to fill the budget
+      for (let i = earlierMessages.length - 1; i >= 0; i--) {
+        const turnText = formatMessageTurn(earlierMessages[i]);
+        if (availableBudget - turnText.length > 0 || i === earlierMessages.length - 1) {
+          messagesToInclude.unshift(turnText);
+          availableBudget -= (turnText.length + 10);
+        } else {
+          omittedCount = i + 1;
+          break;
+        }
+      }
+
+      let historySection = `=== CONVERSATION HISTORY ===\n`;
+      if (omittedCount > 0) {
+        historySection += `(Note: ${omittedCount} earliest turns omitted due to context budget limits)\n\n`;
+      }
+      historySection += messagesToInclude.join('\n\n---\n\n');
+      sections.push(historySection);
+    } else {
+      sections.push(`=== CONVERSATION HISTORY ===\n(Note: ${earlierMessages.length} earlier turns omitted due to context budget limits)`);
+    }
+  }
+
+  // === RECENT CONVERSATION ===
   sections.push(`=== RECENT CONVERSATION ===\n${recentTurnsFormatted}`);
 
   // === CURRENT REQUEST ===
   if (lastUserMessage) {
-    sections.push(`=== CURRENT REQUEST ===\n${formatContentBlocks(lastUserMessage.content)}`);
+    sections.push(currentRequestText);
   }
 
   // === INSTRUCTIONS ===
-  sections.push(
-    '=== INSTRUCTIONS ===\n' +
-    'Continue directly from where the previous assistant stopped.\n' +
-    'Do not restart the task.\n' +
-    'Do not ask the user to repeat information already provided.\n' +
-    'Use the supplied context as the working context for this conversation.'
-  );
+  sections.push(instructionsText);
 
   return sections.join('\n\n');
 }
