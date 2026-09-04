@@ -68,7 +68,7 @@ describe('Full Six-Way End-to-End Transfer Suite', () => {
 
       // 1. Extract from source
       const srcDoc = getSourceDoc(src);
-      const extraction = await srcAdapter.extractConversation(srcDoc, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10, networkTimeoutMs: 10 });
+      const extraction = await srcAdapter.extractConversation(srcDoc, { scrollDelayMs: 0, networkTimeoutMs: 10 });
       expect(extraction.conversation.messages.length).toBeGreaterThan(0);
       expect(extraction.isComplete).toBe(true);
 

@@ -191,7 +191,7 @@ describe('Claude Adapter', () => {
     it('incomplete fixture returns isComplete: false with warning', async () => {
       const html = loadFixture('claude-incomplete.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/incomplete-conv-id' });
-      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10 });
+      const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
       expect(result.isComplete).toBe(false);
       expect(result.warning).toBeDefined();
       expect(result.warning).toContain('earlier messages');

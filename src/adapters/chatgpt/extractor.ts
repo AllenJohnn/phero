@@ -163,7 +163,6 @@ export async function extractChatGPTConversation(
     {
       skipIncompleteCheck: options.skipIncompleteCheck,
       scrollDelayMs: options.scrollDelayMs,
-      topReconciliationTimeoutMs: options.topReconciliationTimeoutMs,
     }
   );
 

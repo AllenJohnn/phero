@@ -1,7 +1,7 @@
 import { NormalizedMessage, Role } from '../../core/models/conversation.ts';
 import { ProviderCaptureStrategy } from '../../core/capture/types.ts';
 import { extractContentBlocksFromElement } from './extractor.ts';
-import { findActiveScrollContainer, executeScrollUp, getVisibleTurnRange, VisibleTurnRange } from '../../core/capture/scroll-helper.ts';
+import { findActiveScrollContainer, executeScrollUp, getVisibleTurnRange, VisibleTurnRange, getScrollMetrics } from '../../core/capture/scroll-helper.ts';
 
 export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
   public readonly providerId = 'chatgpt' as const;
@@ -88,30 +88,26 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
     return messages;
   }
 
-  public isAtBeginning(doc: Document, messages: NormalizedMessage[]): boolean {
-    const turns = Array.from(
-      doc.querySelectorAll<HTMLElement>('article[data-testid^="conversation-turn-"]')
-    );
+  public isAtBeginning(doc: Document, _messages: NormalizedMessage[]): boolean {
+    const container = this.getScrollContainer(doc);
+    const metrics = getScrollMetrics(container, doc);
 
-    // If conversation-turn-0 or conversation-turn-1 or conversation-turn-2 is present
-    for (const turn of turns) {
-      const testId = turn.getAttribute('data-testid') || '';
-      const match = testId.match(/conversation-turn-(\d+)/);
-      if (match) {
-        const turnNum = parseInt(match[1], 10);
-        if (turnNum <= 1) return true;
-      }
+    // If we are not at physical top, we haven't reached the beginning
+    if (!metrics.isAtTop) {
+      return false;
     }
 
-    // Check collected messages for true earliest turns
-    if (messages.some((m) => /conversation-turn-[01]($|\b)/.test(m.id) || m.id === 'turn-1' || m.id === 'turn-0')) {
-      return true;
+    // Check for explicit loading spinners or "loading earlier" elements
+    const searchRoot = (container instanceof HTMLElement) ? container : doc.querySelector('main') || doc.body;
+    if (searchRoot) {
+      const loadingEl = searchRoot.querySelector(
+        'svg.animate-spin, [data-testid*="loading"], [data-testid*="spinner"]'
+      );
+      if (loadingEl) return false;
     }
 
-    const topElement = doc.querySelector('article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-0"]');
-    if (topElement) return true;
-
-    return false;
+    // Evidence: we are at the top, and there is no loading spinner.
+    return true;
   }
 
   public getScrollContainer(doc: Document): HTMLElement | Window {
@@ -147,7 +143,7 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
         // Logical progress condition: The earliest turn ID has changed.
         if (
           (currentRange.earliestTurnId !== 'none' && currentRange.earliestTurnId !== beforeTurnRange.earliestTurnId) ||
-          doc.querySelector('article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-0"]')
+          doc.querySelector('article[data-testid="conversation-turn-4"], article[data-testid="conversation-turn-3"], article[data-testid="conversation-turn-2"], article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-0"]')
         ) {
           cleanup(true);
         }

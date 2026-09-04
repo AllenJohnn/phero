@@ -260,7 +260,6 @@ export async function extractClaudeConversation(
     {
       skipIncompleteCheck: options.skipIncompleteCheck,
       scrollDelayMs: options.scrollDelayMs,
-      topReconciliationTimeoutMs: options.topReconciliationTimeoutMs,
     }
   );
 

@@ -26,7 +26,7 @@ export type CaptureResult = {
 export type CaptureOptions = {
   maxScrollAttempts?: number;
   scrollDelayMs?: number;
-  topReconciliationTimeoutMs?: number;
+
   onProgress?: ProgressCallback;
   skipIncompleteCheck?: boolean;
 };

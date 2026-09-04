@@ -13,7 +13,7 @@ export type ExtractionOptions = {
   maxTurns?: number;
   skipIncompleteCheck?: boolean;
   scrollDelayMs?: number;
-  topReconciliationTimeoutMs?: number;
+
   networkTimeoutMs?: number;
 };
 

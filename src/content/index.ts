@@ -10,6 +10,15 @@ import { buildContinuationPrompt } from '../core/context/prompt-builder.ts';
 
 Logger.info('PHERO content script loaded on page', { href: window.location.href });
 
+// IMMEDIATE INJECTION: Run network interceptors instantly at document_start
+// before React hydration fires the fetch requests.
+const currentUrl = new URL(window.location.href);
+const registry = AdapterRegistry.getInstance();
+const adapter = registry.findAdapterByUrl(currentUrl);
+if (adapter && adapter.startDiagnostics) {
+  adapter.startDiagnostics(document);
+}
+
 async function executeHandoff(currentAdapter: AIProviderAdapter, destination: ProviderId) {
   Logger.info('Executing handoff from content script', {
     source: currentAdapter.id,
