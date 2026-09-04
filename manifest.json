@@ -43,8 +43,21 @@
         "https://claude.ai/*",
         "https://gemini.google.com/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": [
+        "page-world.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ]
 }
