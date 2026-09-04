@@ -19,40 +19,90 @@ export type NetworkCaptureResult = {
  */
 export function getPageWorldInterceptorSource(): string {
   return `
+
     (function() {
+      // 1. Helper to emit data
+      function emitData(data) {
+        if (data && data.mapping && data.conversation_id && data.current_node) {
+          const eventData = {
+            mapping: data.mapping,
+            title: data.title || '',
+            conversation_id: data.conversation_id,
+            current_node: data.current_node
+          };
+          const event = new CustomEvent('${PHERO_NETWORK_EVENT}', { detail: eventData });
+          document.dispatchEvent(event);
+        }
+      }
+
+      // 2. Scan window.__remixContext on load and periodically
+      function checkRemixContext() {
+        try {
+          const ctx = window.__remixContext;
+          if (ctx && ctx.state && ctx.state.loaderData) {
+            for (const key of Object.keys(ctx.state.loaderData)) {
+              const data = ctx.state.loaderData[key];
+              if (data && data.conversation && data.conversation.mapping) {
+                emitData(data.conversation);
+              } else if (data && data.mapping) {
+                emitData(data);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 3. Scan __NEXT_DATA__ just in case
+      function checkNextData() {
+        try {
+          const next = window.__NEXT_DATA__;
+          if (next && next.props && next.props.pageProps && next.props.pageProps.serverResponse) {
+             emitData(next.props.pageProps.serverResponse);
+          }
+        } catch (e) {}
+      }
+
+      checkRemixContext();
+      checkNextData();
+      
+      let lastUrl = location.href;
+      new MutationObserver(() => {
+        if (location.href !== lastUrl) {
+          lastUrl = location.href;
+          setTimeout(checkRemixContext, 500);
+          setTimeout(checkRemixContext, 2000);
+        }
+      }).observe(document, { subtree: true, childList: true });
+
+      // 4. Intercept Fetch
       const originalFetch = window.fetch;
       window.fetch = async function(...args) {
         const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
         const response = await originalFetch.apply(this, args);
         
-        // Match /backend-api/conversation/{id} exactly, ignore /gen_title etc.
-        const conversationMatch = url.match(/\\/backend-api\\/conversation\\/[0-9a-fA-F-]{36}(?:\\?.+)?$/);
+        const isBackendApi = url.includes('/backend-api/conversation/');
+        const isRemixData = url.includes('_data=');
         
-        if (conversationMatch && response.ok) {
+        if ((isBackendApi || isRemixData) && response.ok) {
           try {
             const clone = response.clone();
             clone.json().then(data => {
-              if (data && data.mapping && data.conversation_id && data.current_node) {
-                const eventData = {
-                  mapping: data.mapping,
-                  title: data.title || '',
-                  conversation_id: data.conversation_id,
-                  current_node: data.current_node
-                };
-                const event = new CustomEvent('${PHERO_NETWORK_EVENT}', { detail: eventData });
-                document.dispatchEvent(event);
-              }
-            }).catch(e => {
-              // Ignore parsing errors silently in page world
-            });
-          } catch (e) {
-            // Ignore clone errors
-          }
+               if (isBackendApi) {
+                 emitData(data);
+               } else if (isRemixData) {
+                 if (data && data.conversation && data.conversation.mapping) {
+                   emitData(data.conversation);
+                 } else if (data && data.mapping) {
+                   emitData(data);
+                 }
+               }
+            }).catch(e => {});
+          } catch (e) {}
         }
-        
         return response;
       };
     })();
+
   `;
 }
 
