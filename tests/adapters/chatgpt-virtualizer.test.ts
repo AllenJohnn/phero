@@ -357,7 +357,7 @@ describe('ChatGPT Virtualizer Edge Cases', () => {
     }, 200);
     
     const result = await CaptureOrchestrator.executeCapture(
-      dom.window.document, strategy, { providerId: 'chatgpt' }, { maxScrollAttempts: 20, scrollDelayMs: 50 }
+      dom.window.document, strategy, { providerId: 'chatgpt' }, { maxScrollAttempts: 20, scrollDelayMs: 50, topReconciliationTimeoutMs: 300 }
     );
     
     expect(result.isComplete).toBe(true);

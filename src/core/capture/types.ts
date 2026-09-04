@@ -1,6 +1,7 @@
 import { NormalizedConversation, NormalizedMessage, ProviderId } from '../models/conversation.ts';
 
 export type CaptureCompletenessState = 'COMPLETE' | 'RECOVERING' | 'PARTIAL' | 'UNKNOWN';
+export type CaptureMethod = 'DATA_LEVEL' | 'DOM_VIRTUALIZATION';
 
 export type CaptureProgress = {
   status: CaptureCompletenessState;
@@ -14,6 +15,7 @@ export type ProgressCallback = (progress: CaptureProgress) => void;
 export type CaptureResult = {
   conversation: NormalizedConversation;
   completenessState: CaptureCompletenessState;
+  captureMethod: CaptureMethod;
   isComplete: boolean;
   totalCaptured: number;
   totalEstimated?: number;

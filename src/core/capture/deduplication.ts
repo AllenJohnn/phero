@@ -67,9 +67,9 @@ export function deduplicateMessagesWithAudit(
         skippedDuplicateFingerprintCount++;
         continue;
       }
+      seenFingerprints.add(fingerprint);
     }
 
-    seenFingerprints.add(fingerprint);
     merged.push(msg);
   }
 

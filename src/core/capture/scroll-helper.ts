@@ -89,7 +89,7 @@ export function findActiveScrollContainer(
  * Retrieves normalized scroll metrics regardless of whether container is HTMLElement or Window.
  */
 export function getScrollMetrics(container: HTMLElement | Window, doc?: Document): ScrollMetrics {
-  if (container instanceof HTMLElement) {
+  if (typeof HTMLElement !== 'undefined' && container instanceof HTMLElement) {
     return {
       scrollTop: container.scrollTop,
       scrollHeight: container.scrollHeight,
@@ -172,7 +172,7 @@ export async function executeScrollUp(
   );
 
   // 2. Smart relative scroll decrement
-  if (container instanceof HTMLElement) {
+  if (typeof HTMLElement !== 'undefined' && container instanceof HTMLElement) {
     const clientH = container.clientHeight || 800;
     let targetScrollTop = container.scrollTop - clientH * 0.8;
 

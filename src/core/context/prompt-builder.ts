@@ -54,11 +54,16 @@ export function buildContinuationPrompt(
     extractedUnresolvedIssues,
   } = partitionConversation(messages, budgetConfig);
 
-  // Find the last user request
+  // Find the last user request (only for separate section if it's in earlier messages)
   let lastUserMessage: NormalizedMessage | undefined;
+  const recentMessageIds = new Set(recentMessages.map(m => m.id));
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') {
-      lastUserMessage = messages[i];
+      // Only create a separate CURRENT REQUEST section if the last user message
+      // is NOT already included in the recent conversation section
+      if (!recentMessageIds.has(messages[i].id)) {
+        lastUserMessage = messages[i];
+      }
       break;
     }
   }
@@ -140,23 +145,23 @@ export function buildContinuationPrompt(
       const messagesToInclude: string[] = [];
       let omittedCount = 0;
       
-      // Work backwards from the most recent 'earlier' message to fill the budget
-      for (let i = earlierMessages.length - 1; i >= 0; i--) {
+      // Work forwards from oldest message to preserve conversation beginning
+      for (let i = 0; i < earlierMessages.length; i++) {
         const turnText = formatMessageTurn(earlierMessages[i]);
-        if (availableBudget - turnText.length > 0 || i === earlierMessages.length - 1) {
-          messagesToInclude.unshift(turnText);
+        if (availableBudget - turnText.length > 0 || i === 0) {
+          messagesToInclude.push(turnText);
           availableBudget -= (turnText.length + 10);
         } else {
-          omittedCount = i + 1;
+          omittedCount = earlierMessages.length - i;
           break;
         }
       }
 
       let historySection = `=== CONVERSATION HISTORY ===\n`;
-      if (omittedCount > 0) {
-        historySection += `(Note: ${omittedCount} earliest turns omitted due to context budget limits)\n\n`;
-      }
       historySection += messagesToInclude.join('\n\n---\n\n');
+      if (omittedCount > 0) {
+        historySection += `\n\n(Note: ${omittedCount} middle turns condensed due to context budget limits)`;
+      }
       sections.push(historySection);
     } else {
       sections.push(`=== CONVERSATION HISTORY ===\n(Note: ${earlierMessages.length} earlier turns omitted due to context budget limits)`);

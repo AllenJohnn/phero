@@ -26,7 +26,7 @@ describe('ChatGPT Adapter', () => {
     expect(state.title).toBe('Refactoring TypeScript Engine');
     expect(state.conversationId).toBe('test-thread-id');
 
-    const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0 });
+    const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10, networkTimeoutMs: 10 });
     expect(result.isComplete).toBe(true);
     expect(result.conversation.messages.length).toBe(5);
 
@@ -51,7 +51,7 @@ describe('ChatGPT Adapter', () => {
     const html = fs.readFileSync(fixturePath, 'utf-8');
     const dom = new JSDOM(html, { url: 'https://chatgpt.com/c/long-thread-id' });
 
-    const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0 });
+    const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10, networkTimeoutMs: 10 });
     expect(result.isComplete).toBe(false);
     expect(result.warning).toBeDefined();
     expect(result.conversation.metadata?.isTruncated).toBe(true);
@@ -62,7 +62,7 @@ describe('ChatGPT Adapter', () => {
     const html = fs.readFileSync(fixturePath, 'utf-8');
     const dom = new JSDOM(html, { url: 'https://chatgpt.com/c/sharding-thread' });
 
-    const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0 });
+    const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10, networkTimeoutMs: 10 });
     expect(result.conversation.messages.length).toBe(2);
 
     const assistantMsg = result.conversation.messages[1];

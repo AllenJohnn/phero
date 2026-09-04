@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
@@ -68,7 +68,7 @@ describe('Full Six-Way End-to-End Transfer Suite', () => {
 
       // 1. Extract from source
       const srcDoc = getSourceDoc(src);
-      const extraction = await srcAdapter.extractConversation(srcDoc);
+      const extraction = await srcAdapter.extractConversation(srcDoc, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10, networkTimeoutMs: 10 });
       expect(extraction.conversation.messages.length).toBeGreaterThan(0);
       expect(extraction.isComplete).toBe(true);
 

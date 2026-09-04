@@ -19,7 +19,7 @@ describe('End-to-End Flow: ChatGPT → Gemini Handoff', () => {
     const chatgptHtml = fs.readFileSync(chatgptFixturePath, 'utf-8');
     const chatgptDom = new JSDOM(chatgptHtml, { url: 'https://chatgpt.com/c/test-chatgpt-id' });
 
-    const extraction = await extractChatGPTConversation(chatgptDom.window.document);
+    const extraction = await extractChatGPTConversation(chatgptDom.window.document, { scrollDelayMs: 0, topReconciliationTimeoutMs: 10, networkTimeoutMs: 10 });
     expect(extraction.conversation.messages.length).toBeGreaterThan(0);
     expect(extraction.isComplete).toBe(true);
 

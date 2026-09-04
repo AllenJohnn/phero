@@ -64,7 +64,7 @@ describe('Context & Prompt Builder', () => {
     expect(prompt).toContain('Source: ChatGPT');
     expect(prompt).toContain('Topic: Distributed Storage Design');
     expect(prompt).toContain('=== RECENT CONVERSATION ===');
-    expect(prompt).toContain('=== CURRENT REQUEST ===');
+    expect(prompt).not.toContain('=== CURRENT REQUEST ===');
     expect(prompt).toContain('Please implement the leader election loop.');
     expect(prompt).toContain('=== INSTRUCTIONS ===');
     expect(prompt).toContain('Continue directly from where the previous assistant stopped.');

@@ -99,10 +99,12 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
 
 import { ChatGPTCaptureStrategy } from './capture.ts';
 import { CaptureOrchestrator } from '../../core/capture/orchestrator.ts';
+import { attemptNetworkCapture } from './network-capture.ts';
 
 /**
  * Multi-tier extractor for ChatGPT conversations.
- * Uses incremental scrolling and deduplication to recover virtualized history.
+ * PRIMARY: Attempts network-level capture from intercepted backend-api responses.
+ * FALLBACK: Uses incremental scrolling and deduplication to recover virtualized history.
  */
 export async function extractChatGPTConversation(
   doc: Document,
@@ -111,6 +113,44 @@ export async function extractChatGPTConversation(
   const state = detectChatGPTState(doc);
   Logger.info('Extracting ChatGPT conversation', { isAvailable: state.isAvailable });
 
+  // PRIMARY: Try network-level capture (instant, complete, no scrolling needed)
+  if (state.conversationId) {
+    try {
+      const timeoutMs = options.networkTimeoutMs !== undefined ? options.networkTimeoutMs : 5000;
+      const networkResult = await attemptNetworkCapture(doc, state.conversationId, timeoutMs);
+
+      if (networkResult && networkResult.messages.length > 0) {
+        Logger.info('[PHERO] Network capture succeeded', {
+          totalMessages: networkResult.messages.length,
+          captureMethod: 'DATA_LEVEL',
+        });
+
+        return {
+          conversation: {
+            id: state.conversationId,
+            title: networkResult.title || state.title || 'ChatGPT Conversation',
+            sourceProvider: 'chatgpt',
+            createdAt: Date.now(),
+            messages: networkResult.messages,
+            metadata: {
+              url: doc.location?.href,
+              totalDetectedTurns: networkResult.totalMessages,
+              extractedTurns: networkResult.messages.length,
+              isTruncated: false,
+            },
+          },
+          isComplete: true,
+          totalTurnsDetected: networkResult.totalMessages,
+        };
+      }
+
+      Logger.info('[PHERO] Network capture returned no data, falling back to DOM capture');
+    } catch (err) {
+      Logger.warn('[PHERO] Network capture failed, falling back to DOM capture');
+    }
+  }
+
+  // FALLBACK: DOM-level capture with scroll-based recovery
   const strategy = new ChatGPTCaptureStrategy();
   const captureResult = await CaptureOrchestrator.executeCapture(
     doc,
@@ -123,6 +163,7 @@ export async function extractChatGPTConversation(
     {
       skipIncompleteCheck: options.skipIncompleteCheck,
       scrollDelayMs: options.scrollDelayMs,
+      topReconciliationTimeoutMs: options.topReconciliationTimeoutMs,
     }
   );
 

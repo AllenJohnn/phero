@@ -4,6 +4,7 @@ import { isChatGPTUrl, detectChatGPTState } from './detector.ts';
 import { extractChatGPTConversation } from './extractor.ts';
 import { waitForChatGPTInput, injectChatGPT } from './injector.ts';
 import { startManualScrollDiagnostics } from './diagnostics.ts';
+import { injectPageWorldInterceptor, installNetworkCaptureListener } from './network-capture.ts';
 
 if (typeof window !== 'undefined') {
   (window as any).__PHERO_START_DIAGNOSTICS__ = () => {
@@ -46,6 +47,10 @@ export class ChatGPTAdapter implements AIProviderAdapter {
   }
 
   public startDiagnostics(doc: Document): void {
+    // Install network-level conversation interceptor (primary capture path)
+    installNetworkCaptureListener(doc);
+    injectPageWorldInterceptor(doc);
+    // Also start scroll diagnostics for development
     startManualScrollDiagnostics(doc);
   }
 }

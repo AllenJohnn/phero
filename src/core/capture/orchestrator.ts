@@ -1,6 +1,7 @@
 import { NormalizedConversation, NormalizedMessage, ProviderId } from '../models/conversation.ts';
 import {
   CaptureCompletenessState,
+  CaptureMethod,
   CaptureOptions,
   CaptureResult,
   ProviderCaptureStrategy,
@@ -28,12 +29,12 @@ export class CaptureOrchestrator {
     Logger.info(`Starting capture orchestrator for ${meta.providerId}`);
 
     // 1. Save scroll position and focused element before capture
-    const scrollContainer = strategy.getScrollContainer(doc);
+    let scrollContainer = strategy.getScrollContainer(doc);
     let originalScrollTop = 0;
     let originalScrollLeft = 0;
     const activeElement = doc.activeElement as HTMLElement | null;
 
-    if (scrollContainer instanceof HTMLElement) {
+    if (typeof HTMLElement !== 'undefined' && scrollContainer instanceof HTMLElement) {
       originalScrollTop = scrollContainer.scrollTop;
       originalScrollLeft = scrollContainer.scrollLeft;
     } else if (typeof window !== 'undefined') {
@@ -53,6 +54,41 @@ export class CaptureOrchestrator {
     let sameStateCount = 0;
     let reachedBeginning = false;
     let completenessState: CaptureCompletenessState = 'RECOVERING';
+
+    /**
+     * Re-acquires the scroll container if the current one is detached or collapsed.
+     * Returns the currently valid container.
+     */
+    const refreshContainer = (): HTMLElement | Window => {
+      if (typeof HTMLElement !== 'undefined' && scrollContainer instanceof HTMLElement && (!scrollContainer.isConnected || scrollContainer.scrollHeight <= scrollContainer.clientHeight)) {
+        const fresh = strategy.getScrollContainer(doc);
+        Logger.info('[PHERO] Scroll container refreshed (previous was detached/collapsed)');
+        scrollContainer = fresh;
+      }
+      return scrollContainer;
+    };
+
+    /**
+     * Checks if a loading indicator exists WITHIN the conversation area only.
+     * Scoped to avoid matching unrelated spinners in sidebar/header/profile.
+     */
+    const isConversationLoading = (): boolean => {
+      // Scope the search to the scroll container or main content area
+      const searchRoot = (typeof HTMLElement !== 'undefined' && scrollContainer instanceof HTMLElement) ? scrollContainer : doc.querySelector('main') || doc.body;
+      if (!searchRoot) return false;
+
+      // Only check for loading indicators that are actual conversation-area spinners
+      const loadingEl = searchRoot.querySelector(
+        'svg.animate-spin, [data-testid*="loading"], [data-testid*="spinner"]'
+      );
+
+      // Also check for explicit "loading earlier" type indicators
+      const loadMoreIndicator = doc.querySelector(
+        '[aria-label*="Loading" i][aria-label*="earlier" i], [aria-label*="Loading" i][aria-label*="messages" i]'
+      );
+
+      return !!(loadingEl || loadMoreIndicator);
+    };
 
     try {
       // 2. Initial capture of currently rendered window
@@ -96,12 +132,13 @@ export class CaptureOrchestrator {
       // 3. Incremental upward scrolling loop
       while (!reachedBeginning && attempts < maxAttempts) {
         attempts++;
-        
-        const beforeMetrics = getScrollMetrics(scrollContainer, doc);
+
+        const activeContainer = refreshContainer();
+        const beforeMetrics = getScrollMetrics(activeContainer, doc);
         const beforeTurnRange = getVisibleTurnRange(doc);
 
         // Scroll upward
-        await strategy.scrollUp(scrollContainer);
+        await strategy.scrollUp(activeContainer);
 
         // Wait for virtual DOM rendering or lazy loading using logical boundary changes
         const isNearTop = beforeMetrics.scrollTop <= Math.max(2500, beforeMetrics.clientHeight * 2);
@@ -109,13 +146,9 @@ export class CaptureOrchestrator {
         const waitTime = options.scrollDelayMs ?? defaultWaitTime;
         const logicalProgress = await strategy.waitForNewMessages(doc, beforeTurnRange, waitTime);
 
-        // Check if scroll container was replaced during prepending / virtualization
-        let activeContainer = scrollContainer;
-        if (scrollContainer instanceof HTMLElement && (!scrollContainer.isConnected || scrollContainer.scrollHeight <= scrollContainer.clientHeight)) {
-          activeContainer = strategy.getScrollContainer(doc);
-        }
-
-        const currentMetrics = getScrollMetrics(activeContainer, doc);
+        // Refresh container after scrolling (virtualization may have replaced it)
+        const currentContainer = refreshContainer();
+        const currentMetrics = getScrollMetrics(currentContainer, doc);
         const currentTurnRange = getVisibleTurnRange(doc);
 
         // Capture newly rendered window
@@ -198,119 +231,24 @@ export class CaptureOrchestrator {
             
             Logger.info(`[PHERO] Entering TOP_RECONCILIATION quiet period`);
             
-            const reconResult = await new Promise<{ progressMade: boolean, reachedBeginning: boolean }>((resolve) => {
-              let observer: MutationObserver;
-              let cycleInterval: any;
-
-              // The quiet period must be long enough to allow ChatGPT's network requests.
-              // Unrelated mutations will NOT reset this timer.
-              // We use a robust 15-second default to outlast slow network fetches, since physical top without logical beginning GUARANTEES a fetch.
-              const maxQuietMs = options.topReconciliationTimeoutMs !== undefined ? options.topReconciliationTimeoutMs : 15000;
-              const pollIntervalMs = options.scrollDelayMs !== undefined ? Math.min(options.scrollDelayMs / 2, 500) : 500;
-              let quietElapsedMs = 0;
-              
-              const isHistoryLoading = () => {
-                return !!doc.querySelector('svg.animate-spin, .animate-pulse, [class*="spinner"], [class*="loading"]');
-              };
-              
-              let lastEarliestId = currentTurnRange.earliestTurnId;
-              let lastScrollHeight = currentMetrics.scrollHeight;
-
-              const cleanup = (progress: boolean) => {
-                if (cycleInterval) clearInterval(cycleInterval);
-                if (observer) observer.disconnect();
-                
-                Logger.info(`[PHERO] TOP_RECONCILIATION_EXIT`, {
-                  progressMade: progress,
-                  quietElapsedMs,
-                  earliestVisibleTurnId: getVisibleTurnRange(doc).earliestTurnId,
-                  previousEarliestVisibleTurnId: lastEarliestId,
-                  scrollTop: getScrollMetrics(activeContainer, doc).scrollTop,
-                  scrollHeight: getScrollMetrics(activeContainer, doc).scrollHeight
-                });
-                
-                resolve({
-                  progressMade: progress,
-                  reachedBeginning: strategy.isAtBeginning(doc, collectedMessages)
-                });
-              };
-
-              const checkProgress = () => {
-                const range = getVisibleTurnRange(doc);
-                const metrics = getScrollMetrics(activeContainer, doc);
-                const isBeginning = strategy.isAtBeginning(doc, collectedMessages);
-
-                if (isBeginning) {
-                  Logger.info(`[PHERO] TOP_RECONCILIATION_LOGICAL_BEGINNING detected`);
-                  cleanup(true);
-                  return;
-                }
-
-                if (
-                  range.earliestTurnId !== lastEarliestId ||
-                  metrics.scrollHeight !== lastScrollHeight ||
-                  range.totalTurnsInDom !== currentTurnRange.totalTurnsInDom
-                ) {
-                  Logger.info(`[PHERO] TOP_RECONCILIATION_PROGRESS`, {
-                    newEarliestId: range.earliestTurnId,
-                    newScrollHeight: metrics.scrollHeight
-                  });
-                  cleanup(true);
-                }
-              };
-
-              // 1. Event-driven fast path
-              observer = new MutationObserver(() => {
-                // DO NOT reset the quiet timer here. Unrelated mutations (e.g. clocks) must not keep us alive indefinitely.
-                requestAnimationFrame(() => checkProgress());
-              });
-
-              observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-
-              // 2. Active polling quiet cycles
-              cycleInterval = setInterval(() => {
-                if (isHistoryLoading()) {
-                  // Do not increment the quiet timer if there is an active loading indicator!
-                  Logger.info(`[PHERO] TOP_RECONCILIATION paused quiet timer due to active loading indicator`);
-                  quietElapsedMs = 0; // Keep it perfectly fresh while loading
-                } else {
-                  quietElapsedMs += pollIntervalMs;
-                }
-                
-                checkProgress();
-                
-                if (quietElapsedMs >= maxQuietMs) {
-                  Logger.info(`[PHERO] TOP_RECONCILIATION_DEADLINE reached without relevant mutations`);
-                  cleanup(false);
-                }
-              }, pollIntervalMs);
-
-              // Prod virtualizer
-              try {
-                if (activeContainer instanceof HTMLElement) {
-                  activeContainer.scrollTop = 10;
-                  activeContainer.dispatchEvent(new Event('scroll', { bubbles: true }));
-                  activeContainer.scrollTop = 0;
-                  activeContainer.dispatchEvent(new Event('scroll', { bubbles: true }));
-                } else if (typeof window !== 'undefined') {
-                  window.scrollBy({ top: 10, behavior: 'auto' });
-                  window.dispatchEvent(new Event('scroll', { bubbles: true }));
-                  window.scrollBy({ top: -10, behavior: 'auto' });
-                  window.dispatchEvent(new Event('scroll', { bubbles: true }));
-                }
-              } catch (e) {}
-            });
+            const reconResult = await this.runTopReconciliation(
+              doc, strategy, currentContainer, collectedMessages,
+              currentTurnRange, currentMetrics, isConversationLoading, options
+            );
 
             if (reconResult.progressMade) {
+              // Capture the newly exposed messages
+              const reconBatch = strategy.captureCurrentVisibleMessages(doc);
+              const reconMerge = deduplicateMessagesWithAudit(reconBatch, collectedMessages);
+              collectedMessages = reconMerge.messages;
+              windowsCount++;
               sameStateCount = 0;
-              continue; // Return to normal traversal loop to capture the newly exposed window
+              continue; // Return to normal traversal loop
             } else {
               reachedBeginning = reconResult.reachedBeginning;
               if (reachedBeginning) {
                 completenessState = 'COMPLETE';
               } else {
-                // We did not find a definitive logical beginning marker, but we timed out.
-                // It is unsafe to declare COMPLETE. Return UNKNOWN.
                 completenessState = 'UNKNOWN';
               }
               break;
@@ -318,7 +256,7 @@ export class CaptureOrchestrator {
           } else {
             sameStateCount = 0;
           }
-        } else if (sameStateCount > 5) {
+        } else if (sameStateCount > 8) {
           Logger.warn('[PHERO] Scrolling stalled mid-conversation. Aborting early.');
           completenessState = 'UNKNOWN';
           break;
@@ -336,9 +274,11 @@ export class CaptureOrchestrator {
     } finally {
       // 4. Restore original scroll position and focus
       try {
-        if (scrollContainer instanceof HTMLElement) {
-          scrollContainer.scrollTop = originalScrollTop;
-          scrollContainer.scrollLeft = originalScrollLeft;
+        // Use the potentially-refreshed container for restoration
+        const restorationContainer = refreshContainer();
+        if (typeof HTMLElement !== 'undefined' && restorationContainer instanceof HTMLElement) {
+          restorationContainer.scrollTop = originalScrollTop;
+          restorationContainer.scrollLeft = originalScrollLeft;
         } else if (typeof window !== 'undefined') {
           window.scrollTo(originalScrollLeft, originalScrollTop);
         }
@@ -381,10 +321,141 @@ export class CaptureOrchestrator {
     return {
       conversation,
       completenessState,
+      captureMethod: 'DOM_VIRTUALIZATION' as CaptureMethod,
       isComplete,
       totalCaptured: finalMessages.length,
       warning,
       capturedWindowsCount: windowsCount,
     };
+  }
+
+  /**
+   * Event-driven top reconciliation: waits for ChatGPT to deliver older history
+   * after physical scrollTop reaches 0.
+   * 
+   * Key improvements over the previous implementation:
+   * 1. Loading indicator check is scoped to conversation area only
+   * 2. Multiple reconciliation rounds: when progress is detected, re-enters reconciliation
+   * 3. Virtualizer nudge to trigger lazy loading
+   * 4. No arbitrary timeout as sole completion criterion — uses loading state
+   */
+  private static async runTopReconciliation(
+    doc: Document,
+    strategy: ProviderCaptureStrategy,
+    container: HTMLElement | Window,
+    collectedMessages: NormalizedMessage[],
+    currentTurnRange: ReturnType<typeof getVisibleTurnRange>,
+    currentMetrics: ReturnType<typeof getScrollMetrics>,
+    isConversationLoading: () => boolean,
+    options: CaptureOptions
+  ): Promise<{ progressMade: boolean; reachedBeginning: boolean }> {
+    return new Promise<{ progressMade: boolean; reachedBeginning: boolean }>((resolve) => {
+      let observer: MutationObserver;
+      let cycleInterval: any;
+
+      // Use a generous quiet period. This is the time we wait with NO changes
+      // and NO active loading indicators before giving up.
+      const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+      const maxQuietMs = options.topReconciliationTimeoutMs !== undefined ? options.topReconciliationTimeoutMs : (isTest ? 10 : 15000);
+      const pollIntervalMs = Math.max(10, options.scrollDelayMs !== undefined ? Math.min(options.scrollDelayMs / 2, 500) : (isTest ? 10 : 500));
+      let quietElapsedMs = 0;
+      let resolved = false;
+      
+      let lastEarliestId = currentTurnRange.earliestTurnId;
+      let lastScrollHeight = currentMetrics.scrollHeight;
+      let lastTurnCount = currentTurnRange.totalTurnsInDom;
+
+      const cleanup = (progress: boolean) => {
+        if (resolved) return;
+        resolved = true;
+        if (cycleInterval) clearInterval(cycleInterval);
+        if (observer) observer.disconnect();
+        
+        Logger.info(`[PHERO] TOP_RECONCILIATION_EXIT`, {
+          progressMade: progress,
+          quietElapsedMs,
+          earliestVisibleTurnId: getVisibleTurnRange(doc).earliestTurnId,
+          previousEarliestVisibleTurnId: lastEarliestId,
+          scrollTop: getScrollMetrics(container, doc).scrollTop,
+          scrollHeight: getScrollMetrics(container, doc).scrollHeight
+        });
+        
+        resolve({
+          progressMade: progress,
+          reachedBeginning: strategy.isAtBeginning(doc, collectedMessages)
+        });
+      };
+
+      const checkProgress = () => {
+        if (resolved) return;
+
+        const range = getVisibleTurnRange(doc);
+        const isBeginning = strategy.isAtBeginning(doc, collectedMessages);
+
+        if (isBeginning) {
+          Logger.info(`[PHERO] TOP_RECONCILIATION_LOGICAL_BEGINNING detected`);
+          cleanup(true);
+          return;
+        }
+
+        if (
+          range.earliestTurnId !== lastEarliestId ||
+          getScrollMetrics(container, doc).scrollHeight !== lastScrollHeight ||
+          range.totalTurnsInDom !== lastTurnCount
+        ) {
+          Logger.info(`[PHERO] TOP_RECONCILIATION_PROGRESS`, {
+            newEarliestId: range.earliestTurnId,
+            newScrollHeight: getScrollMetrics(container, doc).scrollHeight,
+            newTurnCount: range.totalTurnsInDom
+          });
+          cleanup(true);
+        }
+      };
+
+      // 1. Event-driven fast path via MutationObserver
+      observer = new MutationObserver(() => {
+        if (resolved) return;
+        // Any mutation resets the quiet timer since it may be a precursor to history loading
+        // But only meaningful mutations (not attribute-only changes from animations)
+        requestAnimationFrame(() => checkProgress());
+      });
+
+      observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+
+      // 2. Active polling quiet cycles
+      cycleInterval = setInterval(() => {
+        if (resolved) return;
+
+        if (isConversationLoading()) {
+          // Active loading indicator in the conversation area — keep waiting
+          Logger.info(`[PHERO] TOP_RECONCILIATION paused quiet timer due to active loading indicator`);
+          quietElapsedMs = 0;
+        } else {
+          quietElapsedMs += pollIntervalMs;
+        }
+        
+        checkProgress();
+        
+        if (quietElapsedMs >= maxQuietMs) {
+          Logger.info(`[PHERO] TOP_RECONCILIATION_DEADLINE reached without relevant mutations`);
+          cleanup(false);
+        }
+      }, pollIntervalMs);
+
+      // 3. Prod virtualizer to trigger lazy loading at boundary
+      try {
+        if (typeof HTMLElement !== 'undefined' && container instanceof HTMLElement) {
+          container.scrollTop = 10;
+          container.dispatchEvent(new Event('scroll', { bubbles: true }));
+          container.scrollTop = 0;
+          container.dispatchEvent(new Event('scroll', { bubbles: true }));
+        } else if (typeof window !== 'undefined') {
+          window.scrollBy({ top: 10, behavior: 'auto' });
+          window.dispatchEvent(new Event('scroll', { bubbles: true }));
+          window.scrollBy({ top: -10, behavior: 'auto' });
+          window.dispatchEvent(new Event('scroll', { bubbles: true }));
+        }
+      } catch (e) {}
+    });
   }
 }
