@@ -42,7 +42,7 @@ const PHERO_NETWORK_EVENT = '__phero_chatgpt_conversation_data__';
           }
         }
       }
-    } catch (e) {}
+    } catch (_e) {}
   }
 
   // 3. Scan __NEXT_DATA__ just in case
@@ -54,7 +54,7 @@ const PHERO_NETWORK_EVENT = '__phero_chatgpt_conversation_data__';
          next.props.pageProps.serverResponse.source = 'NEXT_DATA';
          emitData(next.props.pageProps.serverResponse);
       }
-    } catch (e) {}
+    } catch (_e) {}
   }
 
   checkRemixContext();
@@ -72,7 +72,7 @@ const PHERO_NETWORK_EVENT = '__phero_chatgpt_conversation_data__';
   // 4. Intercept Fetch
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
-    const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+    const url = typeof args[0] === 'string' ? args[0] : (args[0] && (args[0] as any).url ? (args[0] as any).url : '');
     const response = await originalFetch.apply(this, args);
     
     const isBackendApi = url.includes('/backend-api/conversation/');
@@ -94,8 +94,8 @@ const PHERO_NETWORK_EVENT = '__phero_chatgpt_conversation_data__';
                emitData(data);
              }
            }
-        }).catch(e => {});
-      } catch (e) {}
+        }).catch(_e => {});
+      } catch (_e) {}
     }
     return response;
   };

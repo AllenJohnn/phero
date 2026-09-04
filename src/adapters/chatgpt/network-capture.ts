@@ -74,7 +74,7 @@ export function parseConversationMapping(
       messages.push({
         id: node.message.id,
         role,
-        content: [{ type: 'text', value: textContent.trim() }] as ContentBlock[],
+        content: [{ type: 'text', text: textContent.trim() }] as ContentBlock[],
       });
     }
   }

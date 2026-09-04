@@ -116,8 +116,7 @@ export async function extractChatGPTConversation(
   // PRIMARY: Try network-level capture (instant, complete, no scrolling needed)
   if (state.conversationId) {
     try {
-      const timeoutMs = options.networkTimeoutMs !== undefined ? options.networkTimeoutMs : 5000;
-      const networkResult = await attemptNetworkCapture(doc, state.conversationId, timeoutMs);
+      const networkResult = await attemptNetworkCapture(location.href);
 
       if (networkResult && networkResult.messages.length > 0) {
         Logger.info('[PHERO] Network capture succeeded', {
