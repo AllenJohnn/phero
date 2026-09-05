@@ -50,6 +50,8 @@ describe('ChatGPT Adapter', () => {
     const fixturePath = path.resolve(__dirname, '../fixtures/chatgpt-incomplete.html');
     const html = fs.readFileSync(fixturePath, 'utf-8');
     const dom = new JSDOM(html, { url: 'https://chatgpt.com/c/long-thread-id' });
+      (globalThis as any).PHERO_MOCK_IS_AT_TOP = false;
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'scrollTop', { value: 100, configurable: true });
 
     const result = await extractChatGPTConversation(dom.window.document, { scrollDelayMs: 0, networkTimeoutMs: 10 });
     expect(result.isComplete).toBe(false);

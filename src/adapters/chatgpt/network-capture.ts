@@ -19,6 +19,10 @@ let cachedConversationData: Map<string, any> = new Map();
  * Call once when the content script loads on a ChatGPT page.
  */
 export function installNetworkCaptureListener(doc: Document): void {
+  doc.addEventListener('__phero_chatgpt_log__', ((e: CustomEvent) => {
+    Logger.info('[MAIN WORLD] ' + e.detail);
+  }) as EventListener);
+
   doc.addEventListener(PHERO_NETWORK_EVENT, ((e: CustomEvent) => {
     const data = e.detail;
     if (data && data.conversation_id) {
@@ -82,38 +86,43 @@ export function parseConversationMapping(
   return messages;
 }
 
-/**
- * Attempts to retrieve and parse the conversation data from the network cache.
- */
 export async function attemptNetworkCapture(url: string): Promise<NetworkCaptureResult | null> {
   const match = url.match(/\/c\/([a-zA-Z0-9-]+)/);
   if (!match) return null;
   
   const uuid = match[1];
   
-  // Give it a tiny bit of time if we just loaded the page
-  let retries = 3;
-  while (retries > 0) {
-    const data = cachedConversationData.get(uuid);
-    
-    if (data && data.mapping && data.current_node) {
-      try {
-        const messages = parseConversationMapping(data.mapping, data.current_node);
-        return {
-          messages,
-          conversationId: data.conversation_id,
-          title: data.title || 'ChatGPT Conversation',
-          totalMessages: messages.length,
-          captureMethod: 'DATA_LEVEL'
-        };
-      } catch (e) {
-        Logger.error('Failed to parse network capture mapping', e);
-        return null;
+  let data = cachedConversationData.get(uuid);
+
+  if (!data) {
+    Logger.info(`[PHERO] Data not in cache. Attempting direct API fetch for ${uuid}...`);
+    try {
+      const res = await fetch(`https://chatgpt.com/backend-api/conversation/${uuid}`);
+      if (res.ok) {
+        data = await res.json();
+        Logger.info(`[PHERO] Direct API fetch successful!`);
+      } else {
+        Logger.warn(`[PHERO] Direct API fetch failed with status ${res.status}`);
       }
+    } catch (e) {
+      Logger.warn(`[PHERO] Direct API fetch error: ${String(e)}`);
     }
-    
-    await new Promise(r => setTimeout(r, 100));
-    retries--;
+  }
+
+  if (data && data.mapping && data.current_node) {
+    try {
+      const messages = parseConversationMapping(data.mapping, data.current_node);
+      return {
+        messages,
+        conversationId: data.conversation_id,
+        title: data.title || 'ChatGPT Conversation',
+        totalMessages: messages.length,
+        captureMethod: 'DATA_LEVEL'
+      };
+    } catch (e) {
+      Logger.error('Failed to parse network capture mapping', e);
+      return null;
+    }
   }
   
   return null;

@@ -89,25 +89,27 @@ export function findActiveScrollContainer(
  * Retrieves normalized scroll metrics regardless of whether container is HTMLElement or Window.
  */
 export function getScrollMetrics(container: HTMLElement | Window, doc?: Document): ScrollMetrics {
+  const mockIsAtTop = (globalThis as any).PHERO_MOCK_IS_AT_TOP;
+  
   if (typeof HTMLElement !== 'undefined' && container instanceof HTMLElement) {
     return {
       scrollTop: container.scrollTop,
       scrollHeight: container.scrollHeight,
       clientHeight: container.clientHeight,
-      isAtTop: container.scrollTop <= 5,
+      isAtTop: mockIsAtTop !== undefined ? mockIsAtTop : container.scrollTop <= 5,
     };
   }
 
   const d = doc || (typeof document !== 'undefined' ? document : null);
-  const scrollTop = typeof window !== 'undefined' ? window.scrollY || d?.documentElement.scrollTop || d?.body.scrollTop || 0 : 0;
-  const scrollHeight = d?.documentElement.scrollHeight || d?.body.scrollHeight || 0;
-  const clientHeight = typeof window !== 'undefined' ? window.innerHeight : d?.documentElement.clientHeight || 0;
+  if (!d) {
+    return { scrollTop: 0, scrollHeight: 0, clientHeight: 0, isAtTop: mockIsAtTop !== undefined ? mockIsAtTop : true };
+  }
 
   return {
-    scrollTop,
-    scrollHeight,
-    clientHeight,
-    isAtTop: scrollTop <= 5,
+    scrollTop: (typeof window !== 'undefined' ? window.scrollY : 0) || d.documentElement.scrollTop,
+    scrollHeight: d.documentElement.scrollHeight,
+    clientHeight: (typeof window !== 'undefined' ? window.innerHeight : 0) || d.documentElement.clientHeight,
+    isAtTop: mockIsAtTop !== undefined ? mockIsAtTop : ((typeof window !== 'undefined' ? window.scrollY : 0) || d.documentElement.scrollTop) <= 5,
   };
 }
 
@@ -178,27 +180,34 @@ export async function executeScrollUp(
 
     // Smart Jump: If we know the earliest turn in the DOM, we've already captured it entirely.
     // We can jump the viewport directly to the top of that turn, placing it at the bottom of the new viewport.
-    if (turns.length > 0) {
-      const topTurn = turns[0];
-      const containerRect = container.getBoundingClientRect();
-      const topTurnRect = topTurn.getBoundingClientRect();
-      
-      // Calculate where the top of the earliest turn is, relative to the scroll container's top
-      const relativeTop = topTurnRect.top - containerRect.top;
-      const topTurnAbsoluteTop = container.scrollTop + relativeTop;
-
-      const buffer = 150; 
-      const smartTarget = topTurnAbsoluteTop - clientH + buffer;
-
-      // Only use smart target if it advances us upward (less than current scrollTop)
-      // Limit the max jump to 15000px per step for safety against crazy DOM measurements.
-      if (smartTarget < container.scrollTop) {
-        targetScrollTop = Math.max(container.scrollTop - 15000, smartTarget);
+      if (turns.length > 0) {
+        const topTurn = turns[0];
+        const containerRect = container.getBoundingClientRect();
+        const topTurnRect = topTurn.getBoundingClientRect();
+        
+        // Calculate where the top of the earliest turn is, relative to the scroll container's top
+        const relativeTop = topTurnRect.top - containerRect.top;
+        const topTurnAbsoluteTop = container.scrollTop + relativeTop;
+  
+        const buffer = 150; 
+        const smartTarget = topTurnAbsoluteTop - clientH + buffer;
+  
+        // Only use smart target if it advances us upward (less than current scrollTop)
+        // Limit the max jump to 15000px per step for safety against crazy DOM measurements.
+        if (smartTarget < container.scrollTop) {
+          targetScrollTop = Math.max(container.scrollTop - 15000, smartTarget);
+        }
       }
-    }
+      
+      if (container.scrollTop < 50) {
+        container.scrollTop = 150;
+        container.dispatchEvent(new Event('scroll', { bubbles: true }));
+        // Give the browser a tick to process the downward scroll
+        if (typeof window !== 'undefined') await new Promise(r => setTimeout(r, 50));
+      }
 
-    container.scrollTop = Math.max(0, targetScrollTop);
-    container.dispatchEvent(new Event('scroll', { bubbles: true }));
+      container.scrollTop = Math.max(0, targetScrollTop);
+      container.dispatchEvent(new Event('scroll', { bubbles: true }));
   } else if (typeof window !== 'undefined') {
     const clientH = window.innerHeight || 800;
     let scrollStep = clientH * 0.8;

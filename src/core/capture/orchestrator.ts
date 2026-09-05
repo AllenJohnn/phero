@@ -90,10 +90,14 @@ export class CaptureOrchestrator {
           sameStateCount = 0;
         } else {
           sameStateCount++;
-          if (sameStateCount >= 3) {
+          
+          // Determine how patient we should be based on our physical location
+          const metrics = getScrollMetrics(currentContainer, doc);
+          const maxStalls = metrics.isAtTop ? 6 : 3; // Wait 9 seconds at the top, 4.5s midway
+          
+          if (sameStateCount >= maxStalls) {
             Logger.warn('[PHERO] Scrolling stalled mid-conversation. Assuming complete or dead-end.');
-            const metrics = getScrollMetrics(currentContainer, doc);
-            if (metrics.isAtTop && strategy.isAtBeginning(doc, collectedMessages)) {
+            if (metrics.isAtTop || strategy.isAtBeginning(doc, collectedMessages)) {
                 completenessState = 'COMPLETE';
                 reachedBeginning = true;
             } else {

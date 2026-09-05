@@ -107,7 +107,7 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
     }
 
     // Evidence: we are at the top, and there is no loading spinner.
-    return true;
+    return false;
   }
 
   public getScrollContainer(doc: Document): HTMLElement | Window {

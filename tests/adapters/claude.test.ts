@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
@@ -16,6 +16,10 @@ describe('Claude Adapter', () => {
   // ─── Detection ───────────────────────────────────────────────────
 
   describe('Detection', () => {
+    afterEach(() => {
+      delete (globalThis as any).PHERO_MOCK_IS_AT_TOP;
+    });
+
     it('matches valid Claude URLs and rejects other domains', () => {
       expect(adapter.matches(new URL('https://claude.ai/new'))).toBe(true);
       expect(adapter.matches(new URL('https://claude.ai/chat/123-abc'))).toBe(true);
@@ -65,6 +69,7 @@ describe('Claude Adapter', () => {
     it('detects incomplete history when load-more button exists', () => {
       const html = loadFixture('claude-incomplete.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/incomplete-conv-id' });
+      (globalThis as any).PHERO_MOCK_IS_AT_TOP = false;
       const state = detectClaudeState(dom.window.document);
       expect(state.isHistoryFullyLoaded).toBe(false);
     });
@@ -181,6 +186,10 @@ describe('Claude Adapter', () => {
   // ─── Completeness ────────────────────────────────────────────────
 
   describe('Completeness', () => {
+    afterEach(() => {
+      delete (globalThis as any).PHERO_MOCK_IS_AT_TOP;
+    });
+
     it('complete fixture returns isComplete: true', async () => {
       const html = loadFixture('claude-sample.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/test-uuid' });
@@ -191,6 +200,7 @@ describe('Claude Adapter', () => {
     it('incomplete fixture returns isComplete: false with warning', async () => {
       const html = loadFixture('claude-incomplete.html');
       const dom = new JSDOM(html, { url: 'https://claude.ai/chat/incomplete-conv-id' });
+      (globalThis as any).PHERO_MOCK_IS_AT_TOP = false;
       const result = await extractClaudeConversation(dom.window.document, { scrollDelayMs: 0 });
       expect(result.isComplete).toBe(false);
       expect(result.warning).toBeDefined();
