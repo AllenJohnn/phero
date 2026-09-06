@@ -24,7 +24,16 @@ export function installNetworkCaptureListener(doc: Document): void {
   }) as EventListener);
 
   doc.addEventListener(PHERO_NETWORK_EVENT, ((e: CustomEvent) => {
-    const data = e.detail;
+    // page-world.ts serializes to JSON string to survive Chrome's cross-world stripping
+    let data: any = e.detail;
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        Logger.warn('Failed to parse network capture event detail as JSON');
+        return;
+      }
+    }
     if (data && data.conversation_id) {
       cachedConversationData.set(data.conversation_id, data);
       Logger.info('Intercepted conversation data via network capture', {
@@ -40,6 +49,7 @@ export function installNetworkCaptureListener(doc: Document): void {
 /**
  * Parses ChatGPT's conversation mapping tree into ordered NormalizedMessage[].
  * Walks from root to current_node following the main conversation branch.
+ * Handles all content types: text, code, execution_output, multimodal_text, images.
  */
 export function parseConversationMapping(
   mapping: Record<string, any>,
@@ -61,24 +71,61 @@ export function parseConversationMapping(
   const messages: NormalizedMessage[] = [];
   
   for (const node of path) {
-    if (!node.message || !node.message.author || !node.message.content) continue;
+    if (!node.message || !node.message.author) continue;
     
-    const role = node.message.author.role === 'user' ? 'user' : 'assistant';
-    const contentParts = node.message.content.parts || [];
+    const authorRole = node.message.author.role;
+    // Skip system messages and root nodes
+    if (authorRole === 'system') continue;
     
-    // Simple text extraction for now
-    let textContent = '';
-    for (const part of contentParts) {
-      if (typeof part === 'string') {
-        textContent += part + '\n';
+    const role = authorRole === 'user' ? 'user' : 'assistant';
+    const content = node.message.content;
+    if (!content) continue;
+    
+    const blocks: ContentBlock[] = [];
+    const contentType = content.content_type || 'text';
+    
+    // Handle content.parts (text, multimodal_text)
+    if (content.parts && Array.isArray(content.parts)) {
+      for (const part of content.parts) {
+        if (typeof part === 'string') {
+          if (part.trim()) {
+            blocks.push({ type: 'text', text: part.trim() });
+          }
+        } else if (part && typeof part === 'object') {
+          // Image or file attachment
+          if (part.content_type === 'image_asset_pointer' || part.asset_pointer) {
+            const alt = part.metadata?.dalle?.prompt || part.alt || 'image';
+            blocks.push({ type: 'text', text: `[Image: ${alt}]` });
+          } else if (part.content_type === 'file') {
+            const name = part.name || part.filename || 'file';
+            blocks.push({ type: 'text', text: `[File: ${name}]` });
+          } else if (part.text) {
+            blocks.push({ type: 'text', text: part.text.trim() });
+          }
+        }
       }
     }
     
-    if (textContent.trim()) {
+    // Handle content.text (code execution, execution_output, tether_browsing)
+    if (content.text && typeof content.text === 'string' && content.text.trim()) {
+      if (contentType === 'code') {
+        const lang = content.language || 'python';
+        blocks.push({ type: 'code', language: lang, code: content.text.trim() } as ContentBlock);
+      } else if (contentType === 'execution_output') {
+        blocks.push({ type: 'text', text: `[Execution Output]\n${content.text.trim()}` });
+      } else if (contentType === 'tether_browsing_display' || contentType === 'tether_quote') {
+        blocks.push({ type: 'text', text: content.text.trim() });
+      } else {
+        // Generic fallback for any content.text we didn't categorize
+        blocks.push({ type: 'text', text: content.text.trim() });
+      }
+    }
+    
+    if (blocks.length > 0) {
       messages.push({
         id: node.message.id,
         role,
-        content: [{ type: 'text', text: textContent.trim() }] as ContentBlock[],
+        content: blocks,
       });
     }
   }
@@ -94,19 +141,34 @@ export async function attemptNetworkCapture(url: string): Promise<NetworkCapture
   
   let data = cachedConversationData.get(uuid);
 
+  // Wait briefly for page-world interceptor to populate cache (it fires async)
   if (!data) {
-    Logger.info(`[PHERO] Data not in cache. Attempting direct API fetch for ${uuid}...`);
-    try {
-      const res = await fetch(`https://chatgpt.com/backend-api/conversation/${uuid}`);
-      if (res.ok) {
-        data = await res.json();
-        Logger.info(`[PHERO] Direct API fetch successful!`);
-      } else {
-        Logger.warn(`[PHERO] Direct API fetch failed with status ${res.status}`);
+    for (let i = 0; i < 4; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      data = cachedConversationData.get(uuid);
+      if (data) {
+        Logger.info(`[PHERO] Cache hit after ${(i + 1) * 500}ms wait`);
+        break;
       }
-    } catch (e) {
-      Logger.warn(`[PHERO] Direct API fetch error: ${String(e)}`);
     }
+  }
+
+  // Ask page-world (MAIN world) to fetch with auth cookies, then wait for result
+  if (!data) {
+    Logger.info(`[PHERO] Requesting page-world proactive fetch for ${uuid}`);
+    document.dispatchEvent(new CustomEvent('__phero_request_conversation_data__', { detail: uuid }));
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      data = cachedConversationData.get(uuid);
+      if (data) {
+        Logger.info(`[PHERO] Cache hit after on-demand fetch, ${(i + 1) * 500}ms`);
+        break;
+      }
+    }
+  }
+
+  if (!data) {
+    Logger.warn(`[PHERO] All capture methods failed for ${uuid}`);
   }
 
   if (data && data.mapping && data.current_node) {

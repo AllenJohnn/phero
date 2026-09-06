@@ -26,7 +26,17 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
       const keys = Object.keys(data.mapping);
       sendLog('[PHERO] NETWORK_MESSAGES=' + keys.length);
       
-      const event = new CustomEvent(PHERO_NETWORK_EVENT, { detail: eventData });
+      // CRITICAL: Chrome strips non-primitive CustomEvent.detail when crossing
+      // MAIN world → ISOLATED world boundary. Serialize to JSON string.
+      let serialized: string;
+      try {
+        serialized = JSON.stringify(eventData);
+      } catch (e) {
+        sendLog('[PHERO] FAILED_TO_SERIALIZE_EVENT_DATA: ' + String(e));
+        return;
+      }
+      
+      const event = new CustomEvent(PHERO_NETWORK_EVENT, { detail: serialized });
       document.dispatchEvent(event);
     } else {
       sendLog('[PHERO] INVALID_NETWORK_DATA_FOUND (missing mapping, conversation_id, or current_node). Keys: ' + Object.keys(data || {}).join(', '));
@@ -97,11 +107,61 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
   }, 500);
   
   let lastUrl = location.href;
+
+  // 5. Proactive API fetch — runs in MAIN world so we have auth cookies
+  function fetchConversationFromApi(uuid: string) {
+    sendLog('[PHERO] PROACTIVE_FETCH for ' + uuid);
+    originalFetch(`https://chatgpt.com/backend-api/conversation/${uuid}`, {
+      credentials: 'include',
+    })
+      .then(res => {
+        if (res.ok) return res.json();
+        sendLog('[PHERO] PROACTIVE_FETCH failed status=' + res.status);
+        return null;
+      })
+      .then(data => {
+        if (data) {
+          data.source = 'proactive_api_fetch';
+          emitData(data);
+        }
+      })
+      .catch(e => {
+        sendLog('[PHERO] PROACTIVE_FETCH error: ' + String(e));
+      });
+  }
+
+  function getConversationUuidFromUrl(href: string): string | null {
+    const m = href.match(/\/c\/([a-zA-Z0-9-]+)/);
+    if (m) return m[1];
+    // Custom GPT: /g/g-xxx/c/yyy
+    const m2 = href.match(/\/g\/[^/]+\/c\/([a-zA-Z0-9-]+)/);
+    return m2 ? m2[1] : null;
+  }
+
+  // Proactive fetch on initial load (after a short delay for page to settle)
+  const initialUuid = getConversationUuidFromUrl(location.href);
+  if (initialUuid) {
+    setTimeout(() => fetchConversationFromApi(initialUuid), 1500);
+  }
+
+  // Listen for on-demand fetch requests from content script
+  document.addEventListener('__phero_request_conversation_data__', ((e: CustomEvent) => {
+    const uuid = e.detail;
+    if (uuid && typeof uuid === 'string') {
+      fetchConversationFromApi(uuid);
+    }
+  }) as EventListener);
+
   new MutationObserver(() => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       setTimeout(checkRemixContext, 500);
       setTimeout(checkRemixContext, 2000);
+      // Proactive fetch on SPA navigation to new conversation
+      const newUuid = getConversationUuidFromUrl(location.href);
+      if (newUuid) {
+        setTimeout(() => fetchConversationFromApi(newUuid), 1000);
+      }
     }
   }).observe(document, { subtree: true, childList: true });
 

@@ -107,7 +107,14 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
     }
 
     // Evidence: we are at the top, and there is no loading spinner.
-    return false;
+    // Check for the first conversation turn (turn-0 or turn-1) as definitive proof
+    const firstTurnPresent = !!doc.querySelector(
+      'article[data-testid="conversation-turn-0"], article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-2"]'
+    );
+    if (firstTurnPresent) return true;
+
+    // At physical top with no spinner — trust the scroll position
+    return true;
   }
 
   public getScrollContainer(doc: Document): HTMLElement | Window {
