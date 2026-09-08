@@ -11,20 +11,17 @@ export type NetworkCaptureResult = {
   captureMethod: 'DATA_LEVEL';
 };
 
-// Storage for cached conversation data (module-level, lives as long as the content script)
+
 let cachedConversationData: Map<string, any> = new Map();
 
-/**
- * Installs the event listener on the document to capture intercepted data.
- * Call once when the content script loads on a ChatGPT page.
- */
+
 export function installNetworkCaptureListener(doc: Document): void {
   doc.addEventListener('__phero_chatgpt_log__', ((e: CustomEvent) => {
     Logger.info('[MAIN WORLD] ' + e.detail);
   }) as EventListener);
 
   doc.addEventListener(PHERO_NETWORK_EVENT, ((e: CustomEvent) => {
-    // page-world.ts serializes to JSON string to survive Chrome's cross-world stripping
+    
     let data: any = e.detail;
     if (typeof data === 'string') {
       try {
@@ -46,11 +43,7 @@ export function installNetworkCaptureListener(doc: Document): void {
   }) as EventListener);
 }
 
-/**
- * Parses ChatGPT's conversation mapping tree into ordered NormalizedMessage[].
- * Walks from root to current_node following the main conversation branch.
- * Handles all content types: text, code, execution_output, multimodal_text, images.
- */
+
 export function parseConversationMapping(
   mapping: Record<string, any>,
   currentNode: string
@@ -58,14 +51,14 @@ export function parseConversationMapping(
   const path: any[] = [];
   let curr: string | null = currentNode;
   
-  // Walk backwards from current_node to root
+  
   while (curr && mapping[curr]) {
     const node: any = mapping[curr];
     path.push(node);
     curr = node.parent;
   }
   
-  // Reverse to get chronological order
+  
   path.reverse();
   
   const messages: NormalizedMessage[] = [];
@@ -74,7 +67,7 @@ export function parseConversationMapping(
     if (!node.message || !node.message.author) continue;
     
     const authorRole = node.message.author.role;
-    // Skip system messages and root nodes
+    
     if (authorRole === 'system') continue;
     
     const role = authorRole === 'user' ? 'user' : 'assistant';
@@ -84,7 +77,7 @@ export function parseConversationMapping(
     const blocks: ContentBlock[] = [];
     const contentType = content.content_type || 'text';
     
-    // Handle content.parts (text, multimodal_text)
+    
     if (content.parts && Array.isArray(content.parts)) {
       for (const part of content.parts) {
         if (typeof part === 'string') {
@@ -92,13 +85,14 @@ export function parseConversationMapping(
             blocks.push({ type: 'text', text: part.trim() });
           }
         } else if (part && typeof part === 'object') {
-          // Image or file attachment
+          
           if (part.content_type === 'image_asset_pointer' || part.asset_pointer) {
             const alt = part.metadata?.dalle?.prompt || part.alt || 'image';
-            blocks.push({ type: 'text', text: `[Image: ${alt}]` });
+            const url = part.asset_pointer || part.url || '';
+            blocks.push({ type: 'image', url, alt });
           } else if (part.content_type === 'file') {
             const name = part.name || part.filename || 'file';
-            blocks.push({ type: 'text', text: `[File: ${name}]` });
+            blocks.push({ type: 'file', name });
           } else if (part.text) {
             blocks.push({ type: 'text', text: part.text.trim() });
           }
@@ -106,7 +100,7 @@ export function parseConversationMapping(
       }
     }
     
-    // Handle content.text (code execution, execution_output, tether_browsing)
+    
     if (content.text && typeof content.text === 'string' && content.text.trim()) {
       if (contentType === 'code') {
         const lang = content.language || 'python';
@@ -116,7 +110,7 @@ export function parseConversationMapping(
       } else if (contentType === 'tether_browsing_display' || contentType === 'tether_quote') {
         blocks.push({ type: 'text', text: content.text.trim() });
       } else {
-        // Generic fallback for any content.text we didn't categorize
+        
         blocks.push({ type: 'text', text: content.text.trim() });
       }
     }
@@ -141,7 +135,7 @@ export async function attemptNetworkCapture(url: string): Promise<NetworkCapture
   
   let data = cachedConversationData.get(uuid);
 
-  // Wait briefly for page-world interceptor to populate cache (it fires async)
+  
   if (!data) {
     for (let i = 0; i < 4; i++) {
       await new Promise(r => setTimeout(r, 500));
@@ -153,7 +147,7 @@ export async function attemptNetworkCapture(url: string): Promise<NetworkCapture
     }
   }
 
-  // Ask page-world (MAIN world) to fetch with auth cookies, then wait for result
+  
   if (!data) {
     Logger.info(`[PHERO] Requesting page-world proactive fetch for ${uuid}`);
     document.dispatchEvent(new CustomEvent('__phero_request_conversation_data__', { detail: uuid }));

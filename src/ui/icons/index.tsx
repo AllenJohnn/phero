@@ -1,9 +1,6 @@
 import React from 'react';
 
-/**
- * PHERO Brand Logo — Concept 1: The Geometric Phi Axis (Φ / φέρω)
- * Represents continuous transit, carriage, and movement forward.
- */
+
 export const PheroLogo: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 16 }) => (
   <svg
     width={size}
@@ -13,7 +10,7 @@ export const PheroLogo: React.FC<{ className?: string; size?: number }> = ({ cla
     xmlns="http://www.w3.org/2000/svg"
     className={className}
   >
-    {/* Central Transit Conduit (The Meridian) */}
+    {}
     <line
       x1="12"
       y1="2.5"
@@ -23,7 +20,7 @@ export const PheroLogo: React.FC<{ className?: string; size?: number }> = ({ cla
       strokeWidth="2.2"
       strokeLinecap="round"
     />
-    {/* Geometric Carriage Ring */}
+    {}
     <circle
       cx="12"
       cy="12"
@@ -34,9 +31,7 @@ export const PheroLogo: React.FC<{ className?: string; size?: number }> = ({ cla
   </svg>
 );
 
-/**
- * Authentic Claude Brand Glyph
- */
+
 export const ClaudeLogo: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 16 }) => (
   <svg
     width={size}
@@ -53,9 +48,7 @@ export const ClaudeLogo: React.FC<{ className?: string; size?: number }> = ({ cl
   </svg>
 );
 
-/**
- * Authentic ChatGPT Brand Glyph
- */
+
 export const ChatGPTLogo: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 16 }) => (
   <svg
     width={size}
@@ -75,9 +68,7 @@ export const ChatGPTLogo: React.FC<{ className?: string; size?: number }> = ({ c
   </svg>
 );
 
-/**
- * Authentic Gemini Brand Glyph
- */
+
 export const GeminiLogo: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 16 }) => (
   <svg
     width={size}
@@ -94,9 +85,7 @@ export const GeminiLogo: React.FC<{ className?: string; size?: number }> = ({ cl
   </svg>
 );
 
-/**
- * Precision Directional Transit Arrow
- */
+
 export const TransitArrow: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 14 }) => (
   <svg
     width={size}

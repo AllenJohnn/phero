@@ -5,9 +5,7 @@ import { ExtractionOptions, ExtractionResult } from '../types.ts';
 import { detectClaudeState } from './detector.ts';
 import { Logger } from '../../shared/logger.ts';
 
-/**
- * Converts an HTML table element to Markdown table format.
- */
+
 function convertTableToMarkdown(table: HTMLTableElement): string {
   const rows = Array.from(table.querySelectorAll('tr'));
   if (rows.length === 0) return '';
@@ -38,24 +36,21 @@ function convertTableToMarkdown(table: HTMLTableElement): string {
   return [headerLine, separatorLine, ...bodyLines].join('\n');
 }
 
-/**
- * Extracts artifact metadata from a Claude artifact container element.
- * Returns a text block representing the artifact, or null if extraction fails.
- */
+
 function extractArtifactBlock(artifactEl: HTMLElement): ContentBlock | null {
-  // Try to find artifact title/name
+  
   const titleEl = artifactEl.querySelector<HTMLElement>(
     '[data-testid="artifact-title"], .artifact-title, .artifact-name, header, [role="heading"]'
   );
   const artifactTitle = titleEl?.textContent?.trim() || '';
 
-  // Try to find artifact content
+  
   const contentEl = artifactEl.querySelector<HTMLElement>(
     '.artifact-content, [data-testid="artifact-content"], .code-content, pre, code'
   );
   const artifactContent = contentEl?.textContent?.trim() || '';
 
-  // Try to detect artifact type from attributes or class names
+  
   let artifactType = '';
   const typeAttr = artifactEl.getAttribute('data-artifact-type') ||
     artifactEl.getAttribute('data-type') || '';
@@ -68,7 +63,7 @@ function extractArtifactBlock(artifactEl: HTMLElement): ContentBlock | null {
   }
 
   if (artifactContent) {
-    // Check if it's a code artifact
+    
     if (artifactType === 'code' || contentEl?.tagName === 'PRE' || contentEl?.tagName === 'CODE') {
       const codeEl = contentEl?.querySelector('code') || contentEl;
       let language = '';
@@ -92,7 +87,7 @@ function extractArtifactBlock(artifactEl: HTMLElement): ContentBlock | null {
     };
   }
 
-  // Cannot extract content — represent honestly
+  
   if (artifactTitle) {
     return {
       type: 'text',
@@ -106,14 +101,11 @@ function extractArtifactBlock(artifactEl: HTMLElement): ContentBlock | null {
   };
 }
 
-/**
- * Extracts structured content blocks from a Claude turn element.
- * Handles code blocks, tables, artifacts, and strips UI noise.
- */
+
 export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] {
   const blocks: ContentBlock[] = [];
 
-  // 1. Extract artifact containers before they get removed with UI noise
+  
   const artifactContainers = turnEl.querySelectorAll<HTMLElement>(
     '[data-testid="artifact-block"], .artifact-container, .artifact-panel, [data-artifact-id], div[class*="artifact"]'
   );
@@ -124,10 +116,10 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
     }
   }
 
-  // 2. Extract code blocks (outside artifacts)
+  
   const preBlocks = turnEl.querySelectorAll<HTMLPreElement>('pre');
   for (const pre of Array.from(preBlocks)) {
-    // Skip if this pre is inside an artifact we already processed
+    
     if (pre.closest('[data-testid="artifact-block"], .artifact-container, .artifact-panel, [data-artifact-id]')) {
       continue;
     }
@@ -141,7 +133,7 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
       if (langMatch) language = langMatch[1];
     }
 
-    // Fallback: check for language header element that Claude uses
+    
     if (!language) {
       const headerEl = pre.previousElementSibling;
       if (headerEl && headerEl.textContent) {
@@ -161,7 +153,7 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
     }
   }
 
-  // 3. Extract tables as markdown
+  
   const tables = turnEl.querySelectorAll<HTMLTableElement>('table');
   for (const table of Array.from(tables)) {
     const md = convertTableToMarkdown(table);
@@ -170,32 +162,52 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
     }
   }
 
-  // 4. Extract cleaned text content
+  
+  const images = turnEl.querySelectorAll<HTMLImageElement>('img');
+  for (const img of Array.from(images)) {
+    const src = img.getAttribute('src');
+    if (src && !src.startsWith('data:image/svg+xml')) {
+      blocks.push({ type: 'image', url: src, alt: img.getAttribute('alt') || undefined });
+    }
+  }
+  
+  
+  const fileAttachments = turnEl.querySelectorAll<HTMLElement>('.file-attachment, [data-testid="file-attachment"]');
+  for (const fileEl of Array.from(fileAttachments)) {
+    const name = fileEl.textContent?.trim() || 'attached_file';
+    blocks.push({ type: 'file', name });
+  }
+
+  
   const clone = turnEl.cloneNode(true) as HTMLElement;
 
-  // Remove elements that are UI noise, not conversation content
+  
   clone.querySelectorAll([
-    // Code blocks (already extracted above)
+    
     'pre',
-    // Tables (already extracted above)
+    
     'table',
-    // Artifacts (already extracted above)
+    
     '[data-testid="artifact-block"]',
     '.artifact-container',
     '.artifact-panel',
     '[data-artifact-id]',
-    // Thinking/reasoning blocks
+    
+    'img',
+    '.file-attachment',
+    '[data-testid="file-attachment"]',
+    
     'details',
     '[data-testid="thought-block"]',
     '.thinking-block',
     '.reasoning-summary',
     'div[class*="thinking"]',
-    // UI controls
+    
     'button',
     'svg',
     '[role="button"]',
     '.sr-only',
-    // Copy/feedback/regenerate controls
+    
     '.copy-button',
     '[data-testid="copy-turn-action-button"]',
     '.feedback-container',
@@ -203,12 +215,12 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
     '[data-testid="bad-response-turn-action-button"]',
     '.retry-button',
     '[data-testid="regenerate-button"]',
-    // Citation/source panels
+    
     '.citation',
     'sup',
     '.source-panel',
     '[data-testid="citation"]',
-    // Artifact open/view buttons
+    
     '[data-testid="view-artifact-button"]',
     '.artifact-toggle',
   ].join(', ')).forEach((el) => el.remove());
@@ -218,7 +230,7 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
     blocks.unshift({ type: 'text', text: rawText });
   }
 
-  // Fallback if no blocks extracted but container has text
+  
   if (blocks.length === 0) {
     const directText = turnEl.textContent?.trim() || '';
     if (directText) {
@@ -232,12 +244,7 @@ export function extractClaudeContentBlocks(turnEl: HTMLElement): ContentBlock[] 
 import { ClaudeCaptureStrategy } from './capture.ts';
 import { CaptureOrchestrator } from '../../core/capture/orchestrator.ts';
 
-/**
- * Multi-tier extractor for Claude conversations.
- * Handles turn containers, role detection, code blocks, tables, artifacts,
- * and strips thinking blocks, UI noise, and provider controls.
- * Uses incremental scrolling and deduplication to recover virtualized history.
- */
+
 export async function extractClaudeConversation(
   doc: Document,
   options: ExtractionOptions = {}

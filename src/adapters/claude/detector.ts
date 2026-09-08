@@ -16,14 +16,14 @@ export function detectClaudeState(doc: Document): ConversationState {
     };
   }
 
-  // Check URL conversation ID: claude.ai/chat/<uuid>
+  
   const pathParts = url.pathname.split('/').filter(Boolean);
   let conversationId: string | undefined;
   if (pathParts[0] === 'chat' && pathParts[1]) {
     conversationId = pathParts[1];
   }
 
-  // Check for conversation turns in DOM — use deduplication to avoid overcounting
+  
   const turnSet = new Set<Element>();
   doc.querySelectorAll('div[data-test-render-count]').forEach((el) => turnSet.add(el));
   if (turnSet.size === 0) {
@@ -36,7 +36,7 @@ export function detectClaudeState(doc: Document): ConversationState {
   const isNewChatPage = url.pathname === '/new' || url.pathname === '/' || url.pathname === '/chats';
   const isInConversation = messageCount > 0 || (!!conversationId && !isNewChatPage);
 
-  // Extract title from DOM or document.title
+  
   let title = '';
   const titleEl = doc.querySelector<HTMLElement>(
     'button[data-testid="chat-title-button"], div[data-testid="chat-title"], h1.chat-title, [data-testid="conversation-title"]'
@@ -52,7 +52,7 @@ export function detectClaudeState(doc: Document): ConversationState {
       .trim();
   }
 
-  // Check if history is fully loaded (look for load earlier buttons or top turn index)
+  
   let isHistoryFullyLoaded = true;
   const loadMoreBtn = doc.querySelector(
     'button[data-testid="load-more-messages"], .load-earlier-messages'
@@ -61,6 +61,9 @@ export function detectClaudeState(doc: Document): ConversationState {
     isHistoryFullyLoaded = false;
   }
 
+  
+  const isStreaming = !!doc.querySelector('button[aria-label="Stop generating"], .stop-generating-button, [data-testid="stop-generating-button"]');
+
   return {
     isAvailable: true,
     isInConversation,
@@ -68,5 +71,6 @@ export function detectClaudeState(doc: Document): ConversationState {
     title: title || 'Claude Conversation',
     messageCount,
     isHistoryFullyLoaded,
+    isStreaming,
   };
 }

@@ -5,6 +5,7 @@ export type HandoffStatus =
   | 'preparing'
   | 'extracting'
   | 'completeness_warning'
+  | 'streaming_warning'
   | 'building_context'
   | 'opening_destination'
   | 'waiting_for_editor'
@@ -19,7 +20,7 @@ export type HandoffPayload = {
   conversation: NormalizedConversation;
   continuationPrompt: string;
   createdAt: number;
-  expiresAt: number; // TTL (e.g. 5 minutes from creation)
+  expiresAt: number; 
   status: HandoffStatus;
   error?: string;
   isCompletenessVerified: boolean;

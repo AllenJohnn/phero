@@ -1,5 +1,5 @@
-// This script runs in the MAIN world (page context).
-// It cannot use extension APIs (e.g., chrome.runtime).
+
+
 
 const PHERO_NETWORK_EVENT = '__phero_chatgpt_conversation_data__';
 const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
@@ -12,7 +12,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
 
   sendLog('[PHERO] NETWORK_CAPTURE_SCRIPT_STARTED');
   
-  // 1. Helper to emit data
+  
   function emitData(data: any) {
     if (data && data.mapping && data.conversation_id && data.current_node) {
       sendLog('[PHERO] NETWORK_DATA_FOUND via ' + (data.source || 'unknown'));
@@ -26,8 +26,8 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
       const keys = Object.keys(data.mapping);
       sendLog('[PHERO] NETWORK_MESSAGES=' + keys.length);
       
-      // CRITICAL: Chrome strips non-primitive CustomEvent.detail when crossing
-      // MAIN world → ISOLATED world boundary. Serialize to JSON string.
+      
+      
       let serialized: string;
       try {
         serialized = JSON.stringify(eventData);
@@ -43,7 +43,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
     }
   }
 
-  // 2. Scan window.__remixContext on load and periodically
+  
   function checkRemixContext() {
     try {
       const w = window as any;
@@ -78,7 +78,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
     }
   }
 
-  // 3. Scan __NEXT_DATA__ just in case
+  
   function checkNextData() {
     try {
       const w = window as any;
@@ -95,20 +95,20 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
     }
   }
 
-  // Periodically check for Remix context on initial load since it won't exist at document_start
+  
   let loadCheckCount = 0;
   const loadCheckInterval = setInterval(() => {
     checkRemixContext();
     checkNextData();
     loadCheckCount++;
-    if (loadCheckCount > 20 || (window as any).__remixContext) { // 20 * 500ms = 10s max
+    if (loadCheckCount > 20 || (window as any).__remixContext) { 
       clearInterval(loadCheckInterval);
     }
   }, 500);
   
   let lastUrl = location.href;
 
-  // 5. Proactive API fetch — runs in MAIN world so we have auth cookies
+  
   function fetchConversationFromApi(uuid: string) {
     sendLog('[PHERO] PROACTIVE_FETCH for ' + uuid);
     originalFetch(`https://chatgpt.com/backend-api/conversation/${uuid}`, {
@@ -133,18 +133,18 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
   function getConversationUuidFromUrl(href: string): string | null {
     const m = href.match(/\/c\/([a-zA-Z0-9-]+)/);
     if (m) return m[1];
-    // Custom GPT: /g/g-xxx/c/yyy
+    
     const m2 = href.match(/\/g\/[^/]+\/c\/([a-zA-Z0-9-]+)/);
     return m2 ? m2[1] : null;
   }
 
-  // Proactive fetch on initial load (after a short delay for page to settle)
+  
   const initialUuid = getConversationUuidFromUrl(location.href);
   if (initialUuid) {
     setTimeout(() => fetchConversationFromApi(initialUuid), 1500);
   }
 
-  // Listen for on-demand fetch requests from content script
+  
   document.addEventListener('__phero_request_conversation_data__', ((e: CustomEvent) => {
     const uuid = e.detail;
     if (uuid && typeof uuid === 'string') {
@@ -157,7 +157,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
       lastUrl = location.href;
       setTimeout(checkRemixContext, 500);
       setTimeout(checkRemixContext, 2000);
-      // Proactive fetch on SPA navigation to new conversation
+      
       const newUuid = getConversationUuidFromUrl(location.href);
       if (newUuid) {
         setTimeout(() => fetchConversationFromApi(newUuid), 1000);
@@ -165,7 +165,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
     }
   }).observe(document, { subtree: true, childList: true });
 
-  // 4. Intercept Fetch
+  
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
     const url = typeof args[0] === 'string' ? args[0] : (args[0] && (args[0] as any).url ? (args[0] as any).url : '');

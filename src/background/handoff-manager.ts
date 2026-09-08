@@ -20,10 +20,10 @@ export class BackgroundHandoffManager {
         destination: payload.destinationProvider,
       });
 
-      // 1. Store payload in ephemeral session storage
+      
       await SessionStorageManager.saveHandoff(payload);
 
-      // 2. Resolve destination URL from adapter
+      
       const registry = AdapterRegistry.getInstance();
       const destAdapter = registry.getAdapter(payload.destinationProvider);
 
@@ -33,7 +33,7 @@ export class BackgroundHandoffManager {
 
       const destinationUrl = destAdapter.getDestinationUrl();
 
-      // 3. Open destination in a new tab
+      
       const tab = await chrome.tabs.create({
         url: destinationUrl,
         active: true,

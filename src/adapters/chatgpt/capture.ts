@@ -9,7 +9,7 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
   public captureCurrentVisibleMessages(doc: Document): NormalizedMessage[] {
     const messages: NormalizedMessage[] = [];
 
-    // Search for turns
+    
     let turnElements = Array.from(
       doc.querySelectorAll<HTMLElement>('article[data-testid^="conversation-turn-"]')
     );
@@ -92,12 +92,12 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
     const container = this.getScrollContainer(doc);
     const metrics = getScrollMetrics(container, doc);
 
-    // If we are not at physical top, we haven't reached the beginning
+    
     if (!metrics.isAtTop) {
       return false;
     }
 
-    // Check for explicit loading spinners or "loading earlier" elements
+    
     const searchRoot = (container instanceof HTMLElement) ? container : doc.querySelector('main') || doc.body;
     if (searchRoot) {
       const loadingEl = searchRoot.querySelector(
@@ -106,14 +106,14 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
       if (loadingEl) return false;
     }
 
-    // Evidence: we are at the top, and there is no loading spinner.
-    // Check for the first conversation turn (turn-0 or turn-1) as definitive proof
+    
+    
     const firstTurnPresent = !!doc.querySelector(
       'article[data-testid="conversation-turn-0"], article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-2"]'
     );
     if (firstTurnPresent) return true;
 
-    // At physical top with no spinner — trust the scroll position
+    
     return true;
   }
 
@@ -127,7 +127,7 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
   public async scrollUp(container: HTMLElement | Window): Promise<void> {
     const doc = (container instanceof HTMLElement ? container.ownerDocument : (typeof document !== 'undefined' ? document : null)) || document;
     
-    // Check if there is an active scroll container in case it shifted
+    
     let activeContainer = container;
     if (container instanceof HTMLElement && (!container.isConnected || container.scrollHeight <= container.clientHeight)) {
       activeContainer = this.getScrollContainer(doc);
@@ -147,7 +147,7 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
       
       const check = () => {
         const currentRange = getVisibleTurnRange(doc);
-        // Logical progress condition: The earliest turn ID has changed.
+        
         if (
           (currentRange.earliestTurnId !== 'none' && currentRange.earliestTurnId !== beforeTurnRange.earliestTurnId) ||
           doc.querySelector('article[data-testid="conversation-turn-4"], article[data-testid="conversation-turn-3"], article[data-testid="conversation-turn-2"], article[data-testid="conversation-turn-1"], article[data-testid="conversation-turn-0"]')
@@ -163,18 +163,18 @@ export class ChatGPTCaptureStrategy implements ProviderCaptureStrategy {
       };
 
       observer = new MutationObserver(() => {
-        // Debounce slightly to avoid checking on every single node insertion
+        
         requestAnimationFrame(() => check());
       });
 
-      // Observe the document body for changes (handles container recreation)
+      
       observer.observe(doc.body, { childList: true, subtree: true });
 
-      // Initial check in case it changed synchronously
+      
       check();
 
       timeoutId = setTimeout(() => {
-        cleanup(false); // Timeout reached, no logical progress detected
+        cleanup(false); 
       }, timeoutMs);
     });
   }

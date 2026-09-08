@@ -10,8 +10,8 @@ import { buildContinuationPrompt } from '../core/context/prompt-builder.ts';
 
 Logger.info('PHERO content script loaded on page', { href: window.location.href });
 
-// IMMEDIATE INJECTION: Run network interceptors instantly at document_start
-// before React hydration fires the fetch requests.
+
+
 const currentUrl = new URL(window.location.href);
 const registry = AdapterRegistry.getInstance();
 const adapter = registry.findAdapterByUrl(currentUrl);
@@ -30,7 +30,9 @@ async function executeHandoff(currentAdapter: AIProviderAdapter, destination: Pr
     throw new Error('No conversation messages detected on page.');
   }
 
-  const continuationPrompt = buildContinuationPrompt(extraction.conversation);
+  const continuationPrompt = buildContinuationPrompt(extraction.conversation, {
+    destinationProvider: destination,
+  });
   const handoffId = `handoff_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const payload: HandoffPayload = {
     handoffId,
@@ -76,7 +78,7 @@ function initialize(forceRemount = false) {
     return;
   }
 
-  // If provider changed, or we are forced to remount, or host is missing
+  
   const host = document.getElementById('phero-floating-host');
   const needsMount = forceRemount || !host || currentProviderId !== adapter.id;
 
@@ -91,17 +93,17 @@ function initialize(forceRemount = false) {
     currentProviderId = adapter.id;
     currentUnmount = mountFloatingPill(adapter.id);
     
-    // Check for pending handoffs
+    
     InjectionCoordinator.checkAndPerformInjection(adapter.id);
 
-    // Start diagnostics if available for root cause discovery
+    
     if (adapter.startDiagnostics) {
       adapter.startDiagnostics(document);
     }
   }
 }
 
-// 3. Listen for popup / background messages (attach only once)
+
 let messageListenerAttached = false;
 function attachMessageListener() {
   if (messageListenerAttached) return;
@@ -163,20 +165,20 @@ function startLifecycleManager() {
   attachMessageListener();
   initialize();
 
-  // Use a lightweight interval to check for SPA navigation and host removal
-  // This survives document.body replacement and avoids heavy MutationObservers
+  
+  
   setInterval(() => {
     try {
       let shouldCheck = false;
       
-      // 1. Check for SPA navigation
+      
       if (window.location.href !== lastUrl) {
         Logger.info('[PHERO LIFECYCLE] SPA navigation detected', { from: lastUrl, to: window.location.href });
         lastUrl = window.location.href;
         shouldCheck = true;
       }
       
-      // 2. Check if host was removed (e.g. during hydration or body replacement)
+      
       if (currentProviderId) {
         const host = document.getElementById('phero-floating-host');
         if (!host) {
@@ -197,7 +199,7 @@ function startLifecycleManager() {
   }, 1000);
 }
 
-// Initialize when DOM is ready, or immediately if already interactive/complete
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startLifecycleManager);
 } else {

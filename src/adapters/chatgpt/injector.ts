@@ -46,17 +46,17 @@ export async function injectChatGPT(
       composer.dispatchEvent(new Event('input', { bubbles: true }));
       composer.dispatchEvent(new Event('change', { bubbles: true }));
     } else {
-      // ContentEditable div
-      // Use execCommand for React / ProseMirror compatibility
+      
+      
       composer.textContent = '';
       let inserted = false;
       try {
         inserted = doc.execCommand('insertText', false, prompt);
       } catch {
-        // execCommand not available (e.g. JSDOM) — fall through to fallback
+        
       }
       if (!inserted) {
-        // Fallback to direct text and input event
+        
         composer.textContent = prompt;
         composer.dispatchEvent(
           new InputEvent('input', {

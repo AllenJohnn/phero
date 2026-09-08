@@ -47,10 +47,10 @@ export class ChatGPTAdapter implements AIProviderAdapter {
   }
 
   public startDiagnostics(doc: Document): void {
-    // Install network-level conversation interceptor (primary capture path)
+    
     installNetworkCaptureListener(doc);
     
-    // Also start scroll diagnostics for development
+    
     startManualScrollDiagnostics(doc);
   }
 }

@@ -49,7 +49,7 @@ export function startManualScrollDiagnostics(doc: Document) {
   let beforeStateGlobal: GlobalScrollState | null = null;
   let lastIdentifiedContainer: string | null = null;
   
-  // Track mutations
+  
   let mutationTimeout: any = null;
   let recentMutationsObserved = false;
 
@@ -71,7 +71,7 @@ export function startManualScrollDiagnostics(doc: Document) {
   const logTransition = () => {
     if (!beforeStateElements || !beforeStateGlobal) return;
 
-    // Capture "after" state
+    
     const afterGlobal = captureGlobalState();
     const afterElements = new Map<Element, ElementScrollState>();
     
@@ -79,7 +79,7 @@ export function startManualScrollDiagnostics(doc: Document) {
       afterElements.set(el, captureElementState(el));
     }
 
-    // Find what changed
+    
     let targetStructuralIdentity = 'none';
     let scrollTopBefore = 0;
     let scrollTopAfter = 0;
@@ -88,7 +88,7 @@ export function startManualScrollDiagnostics(doc: Document) {
     let clientHeight = 0;
     let mechanismCase = 'UNKNOWN';
 
-    // 1. Check window/document scrolling (CASE B)
+    
     if (
       beforeStateGlobal.windowScrollY !== afterGlobal.windowScrollY ||
       beforeStateGlobal.docElementScrollTop !== afterGlobal.docElementScrollTop ||
@@ -99,10 +99,10 @@ export function startManualScrollDiagnostics(doc: Document) {
       scrollTopBefore = beforeStateGlobal.windowScrollY || beforeStateGlobal.docElementScrollTop;
       scrollTopAfter = afterGlobal.windowScrollY || afterGlobal.docElementScrollTop;
     } else {
-      // 2. Check element scrolling (CASE A)
+      
       for (const [el, beforeState] of beforeStateElements.entries()) {
         const afterState = afterElements.get(el)!;
-        // Check if this element actually scrolled
+        
         if (Math.abs(beforeState.scrollTop - afterState.scrollTop) > 0) {
           mechanismCase = 'CASE A: ELEMENT_SCROLL';
           targetStructuralIdentity = beforeState.identity;
@@ -116,23 +116,23 @@ export function startManualScrollDiagnostics(doc: Document) {
       }
     }
 
-    // 3. Check for virtualized positioning or DOM mutation (CASE C/D)
+    
     if (mechanismCase === 'UNKNOWN') {
       if (recentMutationsObserved) {
         mechanismCase = 'CASE C: NO_SCROLL_BUT_MUTATIONS';
       } else {
-        // Maybe check if visible turns changed despite no scroll?
+        
         mechanismCase = 'CASE D: VIRTUAL_POSITIONING_NO_SCROLL';
       }
     }
 
-    // Container replacement detection (CASE E)
+    
     if (mechanismCase === 'CASE A: ELEMENT_SCROLL' && lastIdentifiedContainer) {
       if (lastIdentifiedContainer !== targetStructuralIdentity) {
         Logger.info('[PHERO] DIAGNOSTIC CONTAINER_CHANGED', {
           oldStructuralIdentity: lastIdentifiedContainer,
           newStructuralIdentity: targetStructuralIdentity,
-          oldScrollTop: 0, // We only know it was a different container
+          oldScrollTop: 0, 
           newScrollTop: scrollTopAfter
         });
       }
@@ -163,14 +163,14 @@ export function startManualScrollDiagnostics(doc: Document) {
       mutationObserved: recentMutationsObserved
     });
 
-    // Reset tracking
+    
     beforeStateElements = null;
     beforeStateGlobal = null;
     recentMutationsObserved = false;
   };
 
   const handleWheelCapture = (e: Event) => {
-    // If not already tracking a wheel gesture, start tracking
+    
     if (!beforeStateElements) {
       beforeStateElements = new Map();
       beforeStateGlobal = captureGlobalState();
@@ -182,7 +182,7 @@ export function startManualScrollDiagnostics(doc: Document) {
         }
       }
       
-      // Also always include all visible turns' ancestors just in case
+      
       const turns = Array.from(doc.querySelectorAll('article[data-testid^="conversation-turn-"]'));
       if (turns.length > 0) {
         let curr = turns[0].parentElement;
@@ -195,7 +195,7 @@ export function startManualScrollDiagnostics(doc: Document) {
       }
     }
 
-    // Debounce the logTransition
+    
     if (wheelTimeout) clearTimeout(wheelTimeout);
     wheelTimeout = setTimeout(() => {
       requestAnimationFrame(() => {
@@ -204,7 +204,7 @@ export function startManualScrollDiagnostics(doc: Document) {
     }, 200);
   };
 
-  // MutationObserver to detect hydration/virtualization during scroll
+  
   const observer = new MutationObserver((mutations) => {
     let meaningful = false;
     for (const m of mutations) {
@@ -217,10 +217,10 @@ export function startManualScrollDiagnostics(doc: Document) {
     if (meaningful) {
       recentMutationsObserved = true;
       if (mutationTimeout) clearTimeout(mutationTimeout);
-      // We don't trigger logTransition immediately here, we just flag it
-      // so the next wheel transition or a standalone mutation log can report it.
+      
+      
       mutationTimeout = setTimeout(() => {
-        if (!beforeStateElements) { // Only standalone log if not inside a wheel gesture
+        if (!beforeStateElements) { 
           const range = getVisibleTurnRange(doc);
           Logger.info('[PHERO DIAGNOSTIC]', {
             event: 'STANDALONE_MUTATION',

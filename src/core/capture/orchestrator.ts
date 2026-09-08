@@ -91,9 +91,9 @@ export class CaptureOrchestrator {
         } else {
           sameStateCount++;
           
-          // Determine how patient we should be based on our physical location
+          
           const metrics = getScrollMetrics(currentContainer, doc);
-          const maxStalls = metrics.isAtTop ? 6 : 3; // Wait 9 seconds at the top, 4.5s midway
+          const maxStalls = metrics.isAtTop ? 6 : 3; 
           
           if (sameStateCount >= maxStalls) {
             Logger.warn('[PHERO] Scrolling stalled mid-conversation. Assuming complete or dead-end.');

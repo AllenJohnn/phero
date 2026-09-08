@@ -5,13 +5,11 @@ import { ExtractionOptions, ExtractionResult } from '../types.ts';
 import { detectChatGPTState } from './detector.ts';
 import { Logger } from '../../shared/logger.ts';
 
-/**
- * Extracts code and text content blocks from a message turn element.
- */
+
 export function extractContentBlocksFromElement(element: HTMLElement): ContentBlock[] {
   const blocks: ContentBlock[] = [];
 
-  // Find all children or nodes
+  
   const children = Array.from(element.children) as HTMLElement[];
 
   if (children.length === 0) {
@@ -22,16 +20,16 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
     return blocks;
   }
 
-  // Iterate over top-level markdown elements or code elements
+  
   for (const child of children) {
-    // Check if element is a code container / pre
+    
     const preEl = child.tagName === 'PRE' ? child : child.querySelector('pre');
     if (preEl) {
-      // Find code inside pre
+      
       const codeEl = preEl.querySelector('code');
       const codeContent = codeEl ? codeEl.textContent || '' : preEl.textContent || '';
       
-      // Determine language from class like class="language-typescript"
+      
       let language = '';
       if (codeEl) {
         const classNames = codeEl.className || '';
@@ -42,7 +40,7 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
       }
       
       if (!language) {
-        // Check for ChatGPT header inside pre that says "python" or "typescript"
+        
         const header = preEl.querySelector('.text-xs, div:first-child');
         if (header && header.textContent) {
           const langText = header.textContent.trim().toLowerCase();
@@ -62,7 +60,31 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
       continue;
     }
 
-    // Skip thought/reasoning elements
+    
+    if (child.tagName === 'IMG') {
+      const src = child.getAttribute('src');
+      if (src) {
+        blocks.push({ type: 'image', url: src, alt: child.getAttribute('alt') || undefined });
+      }
+      continue;
+    }
+    const imgEl = child.querySelector('img');
+    if (imgEl) {
+      const src = imgEl.getAttribute('src');
+      if (src && !src.startsWith('data:image/svg+xml')) {
+        blocks.push({ type: 'image', url: src, alt: imgEl.getAttribute('alt') || undefined });
+      }
+    }
+
+    
+    const fileEl = child.closest('[data-testid^="attachment-"]') || child.querySelector('[data-testid^="attachment-"]');
+    if (fileEl) {
+      const name = fileEl.textContent?.trim() || 'attached_file';
+      blocks.push({ type: 'file', name });
+      continue;
+    }
+
+    
     if (
       child.classList.contains('thought-details') ||
       child.getAttribute('data-testid') === 'thought-block' ||
@@ -71,9 +93,9 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
       continue;
     }
 
-    // Otherwise extract text, stripping utility/action buttons
+    
     const clone = child.cloneNode(true) as HTMLElement;
-    // Remove buttons, tooltips, SVGs, thought summaries, citations
+    
     clone
       .querySelectorAll('button, svg, [role="button"], .sr-only, details, [data-testid="thought-block"], .citation, sup')
       .forEach((el) => el.remove());
@@ -86,7 +108,7 @@ export function extractContentBlocksFromElement(element: HTMLElement): ContentBl
     }
   }
 
-  // Fallback if blocks is empty but container has text
+  
   if (blocks.length === 0) {
     const raw = element.textContent?.trim() || '';
     if (raw) {
@@ -101,11 +123,7 @@ import { ChatGPTCaptureStrategy } from './capture.ts';
 import { CaptureOrchestrator } from '../../core/capture/orchestrator.ts';
 import { attemptNetworkCapture } from './network-capture.ts';
 
-/**
- * Multi-tier extractor for ChatGPT conversations.
- * PRIMARY: Attempts network-level capture from intercepted backend-api responses.
- * FALLBACK: Uses incremental scrolling and deduplication to recover virtualized history.
- */
+
 export async function extractChatGPTConversation(
   doc: Document,
   options: ExtractionOptions = {}
@@ -113,7 +131,7 @@ export async function extractChatGPTConversation(
   const state = detectChatGPTState(doc);
   Logger.info('Extracting ChatGPT conversation', { isAvailable: state.isAvailable });
 
-  // PRIMARY: Try network-level capture (instant, complete, no scrolling needed)
+  
   if (state.conversationId) {
     try {
       const networkResult = await attemptNetworkCapture(location.href);
@@ -149,7 +167,7 @@ export async function extractChatGPTConversation(
     }
   }
 
-  // FALLBACK: DOM-level capture with scroll-based recovery
+  
   const strategy = new ChatGPTCaptureStrategy();
   const captureResult = await CaptureOrchestrator.executeCapture(
     doc,

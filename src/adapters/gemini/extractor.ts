@@ -5,9 +5,7 @@ import { ExtractionOptions, ExtractionResult } from '../types.ts';
 import { detectGeminiState } from './detector.ts';
 import { Logger } from '../../shared/logger.ts';
 
-/**
- * Converts an HTML Table element into standard Markdown table format.
- */
+
 function convertHtmlTableToMarkdown(table: HTMLTableElement): string {
   const rows = Array.from(table.querySelectorAll('tr'));
   if (rows.length === 0) return '';
@@ -25,7 +23,7 @@ function convertHtmlTableToMarkdown(table: HTMLTableElement): string {
   if (tableData.length === 0) return '';
 
   const columnCount = Math.max(...tableData.map((r) => r.length));
-  // Normalize row lengths
+  
   const normalized = tableData.map((row) => {
     while (row.length < columnCount) row.push('');
     return row;
@@ -39,13 +37,11 @@ function convertHtmlTableToMarkdown(table: HTMLTableElement): string {
   return [headerLine, separatorLine, ...bodyLines].join('\n');
 }
 
-/**
- * Extracts structured content blocks (text, code) from a Gemini turn element.
- */
+
 export function extractGeminiContentBlocks(element: HTMLElement): ContentBlock[] {
   const blocks: ContentBlock[] = [];
 
-  // Extract all code blocks first
+  
   const preElements = element.querySelectorAll<HTMLElement>('pre, code-block, div.code-block');
   if (preElements.length > 0) {
     preElements.forEach((pre) => {
@@ -80,7 +76,7 @@ export function extractGeminiContentBlocks(element: HTMLElement): ContentBlock[]
     });
   }
 
-  // Handle tables if present
+  
   const tables = element.querySelectorAll<HTMLTableElement>('table');
   const tableMarkdowns: string[] = [];
   tables.forEach((t) => {
@@ -88,11 +84,27 @@ export function extractGeminiContentBlocks(element: HTMLElement): ContentBlock[]
     if (md) tableMarkdowns.push(md);
   });
 
-  // Extract cleaned text content
+  
+  const images = element.querySelectorAll<HTMLImageElement>('img');
+  for (const img of Array.from(images)) {
+    const src = img.getAttribute('src');
+    if (src && !src.startsWith('data:image/svg+xml')) {
+      blocks.push({ type: 'image', url: src, alt: img.getAttribute('alt') || undefined });
+    }
+  }
+
+  
+  const fileAttachments = element.querySelectorAll<HTMLElement>('file-attachment, .file-attachment-chip');
+  for (const fileEl of Array.from(fileAttachments)) {
+    const name = fileEl.textContent?.trim() || 'attached_file';
+    blocks.push({ type: 'file', name });
+  }
+
+  
   const clone = element.cloneNode(true) as HTMLElement;
   clone
     .querySelectorAll(
-      'pre, code-block, div.code-block, table, button, svg, mat-icon, expand-code-button, .copy-button, tts-control, .bottom-actions, .feedback-container, .citation, sup, [role="button"], .sr-only, .hide-from-screen'
+      'pre, code-block, div.code-block, table, img, file-attachment, .file-attachment-chip, button, svg, mat-icon, expand-code-button, .copy-button, tts-control, .bottom-actions, .feedback-container, .citation, sup, [role="button"], .sr-only, .hide-from-screen'
     )
     .forEach((el) => el.remove());
 
@@ -101,12 +113,12 @@ export function extractGeminiContentBlocks(element: HTMLElement): ContentBlock[]
     blocks.unshift({ type: 'text', text: rawText });
   }
 
-  // Add extracted markdown tables as text blocks if any
+  
   for (const tableMd of tableMarkdowns) {
     blocks.push({ type: 'text', text: tableMd });
   }
 
-  // Fallback: if blocks is still empty but container has text
+  
   if (blocks.length === 0) {
     const directText = element.textContent?.trim() || '';
     if (directText) {
@@ -120,10 +132,7 @@ export function extractGeminiContentBlocks(element: HTMLElement): ContentBlock[]
 import { GeminiCaptureStrategy } from './capture.ts';
 import { CaptureOrchestrator } from '../../core/capture/orchestrator.ts';
 
-/**
- * Multi-tier extractor for Google Gemini conversations.
- * Uses incremental scrolling and deduplication to recover virtualized history.
- */
+
 export async function extractGeminiConversation(
   doc: Document,
   options: ExtractionOptions = {}

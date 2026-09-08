@@ -35,20 +35,37 @@ export class InjectionCoordinator {
 
       this.showStatusBanner(`Preparing ${adapter.name}…`, 'loading');
 
-      // Execute injection
-      const result = await adapter.injectPrompt(document, handoff.continuationPrompt);
+      
+      let result = await adapter.injectPrompt(document, handoff.continuationPrompt);
+      let retries = 0;
+      
+      while ((!result.success || !result.verified) && retries < 2) {
+        retries++;
+        Logger.info(`Injection failed, retrying (${retries}/2)...`);
+        
+        
+        await new Promise(r => setTimeout(r, 500 * retries));
+        
+        try {
+          
+          await adapter.waitForInputReady(document, 2000);
+          result = await adapter.injectPrompt(document, handoff.continuationPrompt);
+        } catch (e) {
+          Logger.warn(`Retry ${retries} failed while waiting for editor`, { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
 
       if (result.success && result.verified) {
         Logger.info('Injection successfully completed and verified');
         this.showStatusBanner('Conversation ready · Review & Send', 'success');
 
-        // Clear handoff from ephemeral storage
+        
         await chrome.runtime.sendMessage({
           type: 'PHERO_CLEAR_HANDOFF',
           handoffId: handoff.handoffId,
         });
 
-        // Hide banner after 3 seconds
+        
         setTimeout(() => {
           this.removeBanner();
         }, 3500);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ProviderId } from '../../core/models/conversation.ts';
+import { ConversationState } from '../../adapters/types.ts';
 import { PheroLogo, ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.tsx';
 import { Logger } from '../../shared/logger.ts';
 import { AdapterRegistry } from '../../adapters/registry.ts';
@@ -11,6 +12,7 @@ export const Popup: React.FC = () => {
   const [pendingDest, setPendingDest] = useState<ProviderId | null>(null);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [conversationState, setConversationState] = useState<ConversationState | null>(null);
 
   useEffect(() => {
     async function checkCurrentTab() {
@@ -31,9 +33,12 @@ export const Popup: React.FC = () => {
         }
 
         try {
-          await chrome.tabs.sendMessage(tab.id, { type: 'PHERO_CHECK_STATE' });
+          const response = await chrome.tabs.sendMessage(tab.id, { type: 'PHERO_CHECK_STATE' });
+          if (response && response.state) {
+            setConversationState(response.state);
+          }
         } catch {
-          // Tab may have been opened before extension load
+          
         }
       } catch (err) {
         Logger.error('Failed to query tab in popup', err);
@@ -61,7 +66,7 @@ export const Popup: React.FC = () => {
           destinationProvider: dest,
         });
       } catch {
-        // Dynamic re-injection fallback
+        
         if (chrome.scripting) {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -122,7 +127,7 @@ export const Popup: React.FC = () => {
 
   return (
     <div className="w-[260px] bg-[#09090B] text-[#F4F4F6] p-3.5 font-sans antialiased select-none border border-[#232326] rounded-xl shadow-2xl">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1E1E22]">
         <div className="flex items-center gap-1.5">
           <div className="flex items-center justify-center text-[#3B82F6]">
@@ -135,7 +140,7 @@ export const Popup: React.FC = () => {
         {getProviderBadge()}
       </div>
 
-      {/* Main Container */}
+      {}
       {loading ? (
         <div className="py-4 flex items-center justify-center text-[#71717A] gap-2 text-xs">
           <SpinnerIcon size={13} className="text-[#3B82F6]" />
@@ -147,6 +152,22 @@ export const Popup: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-1.5">
+          {conversationState && conversationState.isInConversation && (
+            <div className="mb-3 p-2.5 rounded-lg bg-[#141416] border border-[#232326]">
+              <div className="text-[13px] font-medium text-[#F4F4F6] truncate mb-1">
+                {conversationState.title || 'Current Conversation'}
+              </div>
+              <div className="text-[11px] text-[#A1A1AA] flex items-center justify-between">
+                <span>{conversationState.messageCount} messages</span>
+                {conversationState.isStreaming && (
+                  <span className="text-[#F59E0B] flex items-center gap-1">
+                    <SpinnerIcon size={10} className="animate-spin" />
+                    Generating...
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="text-[11px] font-medium text-[#8A8A93] px-0.5 mb-1">
             Continue in
           </div>

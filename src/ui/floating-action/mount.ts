@@ -6,7 +6,7 @@ import { Logger } from '../../shared/logger.ts';
 
 const SHADOW_HOST_ID = 'phero-floating-host';
 
-// Scoped CSS reset & Tailwind utility styles for Shadow DOM isolation
+
 const SHADOW_STYLES = `
 :host {
   all: initial;
@@ -135,7 +135,7 @@ button:hover {
 `;
 
 export function mountFloatingPill(sourceProvider: ProviderId): () => void {
-  // Prevent duplicate mounts
+  
   const existing = document.getElementById(SHADOW_HOST_ID);
   if (existing) {
     existing.remove();
@@ -147,12 +147,12 @@ export function mountFloatingPill(sourceProvider: ProviderId): () => void {
 
   const shadowRoot = host.attachShadow({ mode: 'open' });
 
-  // Add styles
+  
   const styleEl = document.createElement('style');
   styleEl.textContent = SHADOW_STYLES;
   shadowRoot.appendChild(styleEl);
 
-  // Mount container
+  
   const container = document.createElement('div');
   shadowRoot.appendChild(container);
 

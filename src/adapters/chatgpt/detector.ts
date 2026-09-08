@@ -16,38 +16,49 @@ export function detectChatGPTState(doc: Document): ConversationState {
     };
   }
 
-  // Check URL conversation ID
+  
   const pathParts = url.pathname.split('/').filter(Boolean);
   let conversationId: string | undefined;
   if (pathParts[0] === 'c' && pathParts[1]) {
     conversationId = pathParts[1];
   } else if (pathParts[0] === 'g' && pathParts[2] === 'c') {
-    // Custom GPT conversation URL /g/g-xxx/c/yyy
+    
     conversationId = pathParts[3];
   }
 
-  // Check for conversation turns in DOM
+  
   const turns = doc.querySelectorAll('article[data-testid^="conversation-turn-"], div[data-message-author-role]');
   const messageCount = turns.length;
   const isInConversation = messageCount > 0 || !!conversationId;
 
-  // Extract title
-  let title = doc.title;
-  if (title) {
-    title = title.replace(/\s*[-–—]\s*ChatGPT\s*$/i, '').trim();
+  
+  let title = '';
+  if (conversationId) {
+    const activeSidebarLink = doc.querySelector(`nav a[href*="${conversationId}"]`);
+    if (activeSidebarLink) {
+      const titleDiv = activeSidebarLink.querySelector('.truncate') || activeSidebarLink;
+      title = titleDiv.textContent?.trim() || '';
+    }
   }
 
-  // Completeness check heuristic: check if top turn index is 0 or 1
+  if (!title) {
+    title = (doc.title || '').replace(/\s*[-–—]\s*ChatGPT\s*$/i, '').trim();
+  }
+
+  
   let isHistoryFullyLoaded = true;
   if (turns.length > 0) {
     const firstTurn = turns[0];
     const testId = firstTurn.getAttribute('data-testid') || '';
     const match = testId.match(/conversation-turn-(\d+)/);
     if (match && parseInt(match[1], 10) > 1) {
-      // First visible turn is turn 2, 3, etc. => Earlier turns are virtualized/lazy-loaded
+      
       isHistoryFullyLoaded = false;
     }
   }
+
+  
+  const isStreaming = !!doc.querySelector('button[aria-label="Stop generating"], .result-streaming, .streaming');
 
   return {
     isAvailable: true,
@@ -56,5 +67,6 @@ export function detectChatGPTState(doc: Document): ConversationState {
     title: title || 'ChatGPT Conversation',
     messageCount,
     isHistoryFullyLoaded,
+    isStreaming,
   };
 }

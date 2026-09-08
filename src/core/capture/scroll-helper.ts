@@ -14,15 +14,12 @@ export type VisibleTurnRange = {
   turnIds: string[];
 };
 
-/**
- * Robust scroll container detection.
- * Walks up the DOM tree from message elements to find the ancestor that actually scrolls.
- */
+
 export function findActiveScrollContainer(
   doc: Document,
   turnElements: Element[] = []
 ): HTMLElement | Window {
-  // Strategy 1: Walk up from turn elements to find the overflow ancestor
+  
   for (const turnEl of turnElements) {
     let curr: HTMLElement | null = turnEl.parentElement;
     while (curr && curr !== doc.body && curr !== doc.documentElement) {
@@ -44,7 +41,7 @@ export function findActiveScrollContainer(
     }
   }
 
-  // Strategy 2: Check standard provider selectors with active scroll overflow
+  
   const candidateSelectors = [
     'div[class*="react-scroll-to-bottom"]',
     '[data-testid="scroll-container"]',
@@ -72,11 +69,11 @@ export function findActiveScrollContainer(
         }
       }
     } catch {
-      // Ignore query errors
+      
     }
   }
 
-  // Strategy 3: Check document scrolling element
+  
   const scrollingEl = doc.scrollingElement as HTMLElement || doc.documentElement || doc.body;
   if (scrollingEl && scrollingEl.scrollHeight > scrollingEl.clientHeight + 10) {
     return scrollingEl;
@@ -85,9 +82,7 @@ export function findActiveScrollContainer(
   return typeof window !== 'undefined' ? window : ((doc.documentElement || doc.body) as any);
 }
 
-/**
- * Retrieves normalized scroll metrics regardless of whether container is HTMLElement or Window.
- */
+
 export function getScrollMetrics(container: HTMLElement | Window, doc?: Document): ScrollMetrics {
   const mockIsAtTop = (globalThis as any).PHERO_MOCK_IS_AT_TOP;
   
@@ -113,11 +108,9 @@ export function getScrollMetrics(container: HTMLElement | Window, doc?: Document
   };
 }
 
-/**
- * Identifies the range of conversation turns currently visible in the DOM.
- */
+
 export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
-  // Check articles first
+  
   let turns = Array.from(
     doc.querySelectorAll<HTMLElement>('article[data-testid^="conversation-turn-"]')
   );
@@ -159,41 +152,39 @@ export function getVisibleTurnRange(doc: Document): VisibleTurnRange {
   };
 }
 
-/**
- * Performs a controlled upward scroll and activates virtualizer intersection observers.
- */
+
 export async function executeScrollUp(
   doc: Document,
   container: HTMLElement | Window
 ): Promise<ScrollMetrics> {
-  // 1. Identify earliest mounted turn to anchor intersection or scrollIntoView if needed
+  
   const turns = Array.from(
     doc.querySelectorAll<HTMLElement>(
       'article[data-testid^="conversation-turn-"], [data-message-author-role]'
     )
   );
 
-  // 2. Smart relative scroll decrement
+  
   if (typeof HTMLElement !== 'undefined' && container instanceof HTMLElement) {
     const clientH = container.clientHeight || 800;
     let targetScrollTop = container.scrollTop - clientH * 0.8;
 
-    // Smart Jump: If we know the earliest turn in the DOM, we've already captured it entirely.
-    // We can jump the viewport directly to the top of that turn, placing it at the bottom of the new viewport.
+    
+    
       if (turns.length > 0) {
         const topTurn = turns[0];
         const containerRect = container.getBoundingClientRect();
         const topTurnRect = topTurn.getBoundingClientRect();
         
-        // Calculate where the top of the earliest turn is, relative to the scroll container's top
+        
         const relativeTop = topTurnRect.top - containerRect.top;
         const topTurnAbsoluteTop = container.scrollTop + relativeTop;
   
         const buffer = 150; 
         const smartTarget = topTurnAbsoluteTop - clientH + buffer;
   
-        // Only use smart target if it advances us upward (less than current scrollTop)
-        // Limit the max jump to 15000px per step for safety against crazy DOM measurements.
+        
+        
         if (smartTarget < container.scrollTop) {
           targetScrollTop = Math.max(container.scrollTop - 15000, smartTarget);
         }
@@ -202,7 +193,7 @@ export async function executeScrollUp(
       if (container.scrollTop < 50) {
         container.scrollTop = 150;
         container.dispatchEvent(new Event('scroll', { bubbles: true }));
-        // Give the browser a tick to process the downward scroll
+        
         if (typeof window !== 'undefined') await new Promise(r => setTimeout(r, 50));
       }
 
@@ -228,7 +219,7 @@ export async function executeScrollUp(
     window.dispatchEvent(new Event('scroll', { bubbles: true }));
   }
 
-  // Click any pagination / load more buttons if present
+  
   const loadMoreBtn = doc.querySelector<HTMLElement>(
     'button[data-testid="load-more-messages"], .load-earlier-messages, button.load-more, [data-testid="load-earlier-turns"], [aria-label*="earlier messages" i], [aria-label*="load more" i]'
   );

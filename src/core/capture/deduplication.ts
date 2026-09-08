@@ -1,8 +1,6 @@
 import { NormalizedMessage } from '../models/conversation.ts';
 
-/**
- * Computes a fingerprint for content blocks within a message.
- */
+
 export function computeContentFingerprint(msg: NormalizedMessage): string {
   const parts: string[] = [msg.role];
   for (const block of msg.content) {
@@ -15,9 +13,7 @@ export function computeContentFingerprint(msg: NormalizedMessage): string {
   return parts.join('|||');
 }
 
-/**
- * Checks whether an ID is a genuine, globally unique message ID rather than a relative slice index.
- */
+
 export function isStableMessageId(id: string | undefined): boolean {
   if (!id) return false;
   if (id.startsWith('temp-') || id.startsWith('turn-fallback-') || id.startsWith('turn-dom-')) return false;
@@ -94,9 +90,7 @@ export function deduplicateMessages(
   return deduplicateMessagesWithAudit(existingMessages, incomingMessages).messages;
 }
 
-/**
- * Ensures normalized messages are sequentially indexed and stable.
- */
+
 export function reindexMessages(messages: NormalizedMessage[]): NormalizedMessage[] {
   return messages.map((msg, index) => ({
     ...msg,

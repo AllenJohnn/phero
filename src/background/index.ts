@@ -44,6 +44,6 @@ chrome.runtime.onMessage.addListener((message: PheroMessage, _sender, sendRespon
     }
   })();
 
-  // Return true to indicate asynchronous response
+  
   return true;
 });

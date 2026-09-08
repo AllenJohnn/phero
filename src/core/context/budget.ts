@@ -1,14 +1,31 @@
 import { NormalizedMessage, CodeBlock } from '../models/conversation.ts';
 
 export type BudgetConfig = {
-  maxCharacters: number; // Approximate safety threshold (e.g. 24,000 chars ~ 6,000 tokens)
-  verbatimRecentTurnsCount: number; // Keep last 4–6 turns 100% intact
+  maxCharacters: number; 
+  verbatimRecentTurnsCount: number; 
 };
 
 export const DEFAULT_BUDGET_CONFIG: BudgetConfig = {
-  maxCharacters: 400000, // ~100k tokens. Claude supports 200k, Gemini 1M+, ChatGPT 128k. Safe margin.
-  verbatimRecentTurnsCount: 30, // Keep last 30 turns verbatim
+  maxCharacters: 400000, 
+  verbatimRecentTurnsCount: 30, 
 };
+
+import { ProviderId } from '../models/conversation.ts';
+
+export function getBudgetConfigForProvider(provider: ProviderId | undefined): BudgetConfig {
+  if (!provider) return DEFAULT_BUDGET_CONFIG;
+  
+  switch (provider) {
+    case 'chatgpt':
+      return { maxCharacters: 500000, verbatimRecentTurnsCount: 30 };
+    case 'claude':
+      return { maxCharacters: 320000, verbatimRecentTurnsCount: 30 };
+    case 'gemini':
+      return { maxCharacters: 800000, verbatimRecentTurnsCount: 30 };
+    default:
+      return DEFAULT_BUDGET_CONFIG;
+  }
+}
 
 export type PartitionedMessages = {
   recentMessages: NormalizedMessage[];
@@ -19,10 +36,7 @@ export type PartitionedMessages = {
   extractedUnresolvedIssues: string[];
 };
 
-/**
- * Partitions a message history into recent verbatim messages,
- * earlier summary context, extracted code blocks, decisions, and constraints respecting the budget.
- */
+
 export function partitionConversation(
   messages: NormalizedMessage[],
   config: BudgetConfig = DEFAULT_BUDGET_CONFIG
@@ -44,7 +58,7 @@ export function partitionConversation(
   const earlierMessages = messages.slice(0, splitIndex);
   const recentMessages = messages.slice(splitIndex);
 
-  // Extract critical code blocks from earlier messages so they are not lost
+  
   const extractedCodeBlocks: CodeBlock[] = [];
   const extractedConstraints: string[] = [];
   const extractedDecisions: string[] = [];
@@ -56,7 +70,7 @@ export function partitionConversation(
   for (const msg of earlierMessages) {
     for (const block of msg.content) {
       if (block.type === 'code' && block.code.trim().length > 0) {
-        // Keep unique code blocks
+        
         if (!extractedCodeBlocks.some((b) => b.code.trim() === block.code.trim())) {
           extractedCodeBlocks.push(block);
         }
@@ -66,7 +80,7 @@ export function partitionConversation(
           const trimmed = line.trim();
           if (!trimmed || trimmed.length < 5) continue;
 
-          // 1. Requirements & Constraints
+          
           if (
             /^(require(ment)?|must|constraint|rule|goal|instruction|note|spec|acceptance criteria):/i.test(trimmed) ||
             /^-\s*(must|shall|should not|do not|never|always)\b/i.test(trimmed)
@@ -79,7 +93,7 @@ export function partitionConversation(
             }
           }
 
-          // 2. Decisions & Architecture choices
+          
           else if (
             /^(decision|we decided|agreed on|chosen approach|architecture choice|design):/i.test(trimmed) ||
             /\b(let's go with|we'll use|chosen to use|settled on)\b/i.test(trimmed)
@@ -92,7 +106,7 @@ export function partitionConversation(
             }
           }
 
-          // 3. Unresolved issues or bugs mentioned earlier
+          
           else if (
             /^(bug|error|issue|unresolved|todo|blocker|failure):/i.test(trimmed) ||
             /\b(fix needed|still failing|broken|exception encountered)\b/i.test(trimmed)

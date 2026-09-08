@@ -24,7 +24,7 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsOpen(false);
-        if (status === 'completeness_warning') {
+        if (status === 'completeness_warning' || status === 'streaming_warning') {
           setStatus('idle');
         }
       }
@@ -47,7 +47,14 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
         throw new Error(`Source provider adapter not found: ${sourceProvider}`);
       }
 
-      // Extract conversation
+      const state = await adapter.detectState(document);
+      if (state.isStreaming && !forceContinue) {
+        setStatus('streaming_warning');
+        setWarningMessage('The assistant is still typing. Handoff now will only capture partial output.');
+        return;
+      }
+
+      
       const extraction = await adapter.extractConversation(document);
 
       if (extraction.conversation.messages.length === 0) {
@@ -57,14 +64,14 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
         return;
       }
 
-      // Check completeness
+      
       if (!extraction.isComplete && !forceContinue) {
         setStatus('completeness_warning');
         setWarningMessage(extraction.warning || 'Some earlier messages may not be loaded in this view.');
         return;
       }
 
-      // Build context & prompt
+      
       setStatus('building_context');
       setStatusText('Building context…');
 
@@ -90,7 +97,7 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
       const destName = destAdapter ? destAdapter.name : 'destination';
       setStatusText(`Opening ${destName}…`);
 
-      // Dispatch to background script
+      
       const response = await chrome.runtime.sendMessage({
         type: 'PHERO_START_HANDOFF',
         sourceProvider,
@@ -124,21 +131,23 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
+      
     }
   };
 
   return (
     <div className="fixed bottom-5 right-5 z-[999999] font-sans antialiased select-none">
-      {/* Completeness Warning Modal */}
-      {status === 'completeness_warning' && (
+      {}
+      {(status === 'completeness_warning' || status === 'streaming_warning') && (
         <div className="absolute bottom-11 right-0 w-72 rounded-xl border border-[#D97706]/40 bg-[#09090B] p-3.5 text-[#F4F4F6] shadow-2xl backdrop-blur-md">
           <div className="flex items-start gap-2 mb-2.5">
             <div className="text-[#D97706] mt-0.5">
               <AlertIcon size={16} />
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-[#F4F4F6]">History Incomplete</h4>
+              <h4 className="text-xs font-semibold text-[#F4F4F6]">
+                {status === 'streaming_warning' ? 'Assistant is Typing' : 'History Incomplete'}
+              </h4>
               <p className="text-[11px] text-[#8A8A93] mt-0.5 leading-relaxed">
                 {warningMessage || 'Some earlier messages may not be loaded in the page view.'}
               </p>
@@ -168,7 +177,7 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
         </div>
       )}
 
-      {/* Quick Switcher dropdown */}
+      {}
       {isOpen && status === 'idle' && (
         <QuickSwitcher
           sourceProvider={sourceProvider}
@@ -177,7 +186,7 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({ sourceProvider }) =>
         />
       )}
 
-      {/* Primary Pill Button */}
+      {}
       <button
         onClick={() => {
           if (status === 'idle') {

@@ -9,7 +9,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
   public captureCurrentVisibleMessages(doc: Document): NormalizedMessage[] {
     const messages: NormalizedMessage[] = [];
 
-    // Search for unified conversation turn containers
+    
     const turnElements = Array.from(
       doc.querySelectorAll<HTMLElement>(
         'conversation-turn, div[data-test-id="conversation-turn"], .conversation-turn'
@@ -46,7 +46,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
         }
       }
     } else {
-      // Individual queries and responses
+      
       const userElements = Array.from(
         doc.querySelectorAll<HTMLElement>(
           'user-query, .user-query-container, div[data-test-id="user-query"]'
@@ -92,7 +92,7 @@ export class GeminiCaptureStrategy implements ProviderCaptureStrategy {
     const container = this.getScrollContainer(doc);
     const metrics = getScrollMetrics(container, doc);
 
-    // If scroll container has room to scroll up, we are not at the beginning
+    
     if (!metrics.isAtTop) {
       return false;
     }

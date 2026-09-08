@@ -13,7 +13,21 @@ export type CodeBlock = {
   code: string;
 };
 
-export type ContentBlock = TextBlock | CodeBlock;
+export type ImageBlock = {
+  type: 'image';
+  url: string;
+  alt?: string;
+};
+
+export type FileBlock = {
+  type: 'file';
+  name: string;
+  url?: string;
+  mimeType?: string;
+  size?: number;
+};
+
+export type ContentBlock = TextBlock | CodeBlock | ImageBlock | FileBlock;
 
 export type NormalizedMessage = {
   id: string;

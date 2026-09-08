@@ -1,9 +1,7 @@
 import { InjectionResult } from '../types.ts';
 import { Logger } from '../../shared/logger.ts';
 
-/**
- * Dynamically waits for the Claude composer editor to mount in the DOM.
- */
+
 export async function waitForClaudeInput(
   doc: Document,
   timeoutMs = 12000
@@ -12,7 +10,7 @@ export async function waitForClaudeInput(
   Logger.info('Waiting for Claude composer editor...');
 
   return new Promise((resolve, reject) => {
-    // Quick check function
+    
     const findComposer = (): HTMLElement | null => {
       return (
         doc.querySelector<HTMLElement>('div.ProseMirror[contenteditable="true"]') ||
@@ -31,7 +29,7 @@ export async function waitForClaudeInput(
       return;
     }
 
-    // Set up MutationObserver
+    
     const observer = new MutationObserver(() => {
       const el = findComposer();
       if (el) {
@@ -50,7 +48,7 @@ export async function waitForClaudeInput(
       attributes: true,
     });
 
-    // Backup timeout
+    
     setTimeout(() => {
       observer.disconnect();
       const el = findComposer();
@@ -63,9 +61,7 @@ export async function waitForClaudeInput(
   });
 }
 
-/**
- * Injects continuation prompt into Claude's ProseMirror editor without auto-submitting.
- */
+
 export async function injectClaude(
   doc: Document,
   prompt: string
@@ -74,20 +70,20 @@ export async function injectClaude(
     const composer = await waitForClaudeInput(doc);
     Logger.info('Focusing and injecting prompt into Claude composer');
 
-    // 1. Focus the composer
+    
     composer.focus();
 
-    // 2. Clear any empty placeholder paragraph
+    
     const isContentEditable = composer.isContentEditable || composer.getAttribute('contenteditable') === 'true';
     if (isContentEditable) {
-      // Create a clean selection inside composer
+      
       const selection = doc.getSelection();
       const range = doc.createRange();
       range.selectNodeContents(composer);
       selection?.removeAllRanges();
       selection?.addRange(range);
 
-      // 3. Try standard document.execCommand for ProseMirror/Lexical
+      
       let inserted = false;
       try {
         inserted = doc.execCommand('insertText', false, prompt);
@@ -95,9 +91,9 @@ export async function injectClaude(
         Logger.warn('execCommand insertText failed, trying DOM fallback', { err: String(err) });
       }
 
-      // 4. Fallback if execCommand did not work or returned false
+      
       if (!inserted || !composer.textContent?.includes('You are continuing')) {
-        // Build paragraphs for ProseMirror
+        
         composer.innerHTML = '';
         const lines = prompt.split('\n');
         for (const line of lines) {
@@ -110,7 +106,7 @@ export async function injectClaude(
           composer.appendChild(p);
         }
 
-        // Dispatch synthetic beforeinput and InputEvents to notify ProseMirror / Lexical state listeners
+        
         composer.dispatchEvent(
           new InputEvent('beforeinput', {
             bubbles: true,
@@ -136,8 +132,8 @@ export async function injectClaude(
       composer.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // 5. Verification step: Ensure text exists inside composer
-    // Give framework microtask to update
+    
+    
     await new Promise((r) => setTimeout(r, 80));
 
     const contentText = composer.textContent || (composer as HTMLTextAreaElement).value || '';
@@ -151,7 +147,7 @@ export async function injectClaude(
       contentLength: contentText.length,
     });
 
-    // Re-focus composer and scroll to bottom so user can review
+    
     composer.focus();
 
     return {

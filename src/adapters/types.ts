@@ -7,6 +7,7 @@ export type ConversationState = {
   title?: string;
   messageCount?: number;
   isHistoryFullyLoaded?: boolean;
+  isStreaming?: boolean;
 };
 
 export type ExtractionOptions = {
@@ -38,38 +39,24 @@ export interface AIProviderAdapter {
   readonly hostnames: string[];
   readonly supportedDestinations: ProviderId[];
 
-  /**
-   * Checks if current URL belongs to this provider.
-   */
+  
   matches(url: URL): boolean;
 
-  /**
-   * Detects the conversation status on the current page.
-   */
+  
   detectState(document: Document): Promise<ConversationState>;
 
-  /**
-   * Extracts the conversation content from the active document.
-   */
+  
   extractConversation(document: Document, options?: ExtractionOptions): Promise<ExtractionResult>;
 
-  /**
-   * Gets the URL to open a new conversation at this provider.
-   */
+  
   getDestinationUrl(): string;
 
-  /**
-   * Waits for the composer input field to be ready for injection.
-   */
+  
   waitForInputReady(document: Document, timeoutMs?: number): Promise<HTMLElement>;
 
-  /**
-   * Injects the continuation prompt into the composer and verifies injection.
-   */
+  
   injectPrompt(document: Document, prompt: string): Promise<InjectionResult>;
 
-  /**
-   * Starts logging diagnostic information about the page state.
-   */
+  
   startDiagnostics?(document: Document): void;
 }

@@ -1,9 +1,7 @@
 import { InjectionResult } from '../types.ts';
 import { Logger } from '../../shared/logger.ts';
 
-/**
- * Dynamically waits for the Google Gemini composer editor to mount in the DOM.
- */
+
 export async function waitForGeminiInput(
   doc: Document,
   timeoutMs = 14000
@@ -64,9 +62,7 @@ export async function waitForGeminiInput(
   });
 }
 
-/**
- * Injects continuation prompt into Gemini's Quill / contenteditable composer without auto-submitting.
- */
+
 export async function injectGemini(
   doc: Document,
   prompt: string
@@ -75,10 +71,10 @@ export async function injectGemini(
     const composer = await waitForGeminiInput(doc);
     Logger.info('Focusing and injecting prompt into Gemini composer');
 
-    // 1. Focus the composer
+    
     composer.focus();
 
-    // 2. Clear any empty placeholder paragraph
+    
     const isContentEditable = composer.isContentEditable || composer.getAttribute('contenteditable') === 'true';
     if (isContentEditable) {
       const selection = doc.getSelection();
@@ -87,7 +83,7 @@ export async function injectGemini(
       selection?.removeAllRanges();
       selection?.addRange(range);
 
-      // 3. Try standard document.execCommand for Quill / contenteditable
+      
       let inserted = false;
       try {
         inserted = doc.execCommand('insertText', false, prompt);
@@ -97,7 +93,7 @@ export async function injectGemini(
         });
       }
 
-      // 4. Fallback if execCommand did not populate text
+      
       if (!inserted || !composer.textContent?.includes('You are continuing')) {
         composer.innerHTML = '';
         const lines = prompt.split('\n');
@@ -111,7 +107,7 @@ export async function injectGemini(
           composer.appendChild(p);
         }
 
-        // Dispatch synthetic InputEvents to notify Quill / Angular / Lit listeners
+        
         composer.dispatchEvent(
           new InputEvent('beforeinput', {
             bubbles: true,
@@ -138,7 +134,7 @@ export async function injectGemini(
       composer.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // 5. Verification step: Ensure text exists inside composer
+    
     await new Promise((r) => setTimeout(r, 100));
 
     const contentText = composer.textContent || (composer as HTMLTextAreaElement).value || '';
@@ -152,7 +148,7 @@ export async function injectGemini(
       contentLength: contentText.length,
     });
 
-    // 6. Re-focus composer and scroll into view for user review
+    
     composer.focus();
 
     return {

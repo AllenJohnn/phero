@@ -2,7 +2,7 @@ import { HandoffPayload } from '../models/handoff.ts';
 import { Logger } from '../../shared/logger.ts';
 
 const SESSION_STORAGE_KEY_PREFIX = 'phero_handoff_';
-export const HANDOFF_DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
+export const HANDOFF_DEFAULT_TTL_MS = 5 * 60 * 1000; 
 
 export class SessionStorageManager {
   private static getStorageArea(): chrome.storage.StorageArea {
@@ -12,7 +12,7 @@ export class SessionStorageManager {
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
       return chrome.storage.local;
     }
-    // In-memory fallback for unit testing
+    
     return {
       get: async (_keys: any) => ({}),
       set: async (_items: any) => {},
@@ -46,7 +46,7 @@ export class SessionStorageManager {
 
     if (!payload) return null;
 
-    // Verify TTL
+    
     if (Date.now() > payload.expiresAt) {
       Logger.warn('Pending handoff has expired, purging', { handoffId: payload.handoffId });
       await this.clearHandoff(payload.handoffId, destination);

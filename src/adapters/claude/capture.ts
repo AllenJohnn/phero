@@ -9,7 +9,7 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
   public captureCurrentVisibleMessages(doc: Document): NormalizedMessage[] {
     const messages: NormalizedMessage[] = [];
 
-    // Structured turn containers
+    
     let turnElements = Array.from(
       doc.querySelectorAll<HTMLElement>(
         'div[data-test-render-count], div[data-testid="chat-message"]'
@@ -63,7 +63,7 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
         }
       }
     } else {
-      // Fallback
+      
       const userTurns = Array.from(
         doc.querySelectorAll<HTMLElement>(
           '.font-user-message, div[data-is-streaming="false"]:has(.font-user-message), div.whitespace-pre-wrap'
@@ -106,28 +106,28 @@ export class ClaudeCaptureStrategy implements ProviderCaptureStrategy {
   }
 
   public isAtBeginning(doc: Document, _messages: NormalizedMessage[]): boolean {
-    // 1. If load earlier messages button exists, we are definitely NOT at the beginning
+    
     const loadMoreBtn = doc.querySelector('button[data-testid="load-more-messages"], .load-earlier-messages, [data-testid="load-earlier-turns"]');
     if (loadMoreBtn) {
       return false;
     }
 
-    // 2. Check if scroll container is at top
+    
     const container = this.getScrollContainer(doc);
     const metrics = getScrollMetrics(container, doc);
 
-    // 3. If scroll container is scrolled down, we have not reached the top
+    
     if (!metrics.isAtTop) {
       return false;
     }
 
-    // 4. Check if top header or start marker is visible
+    
     const topMarker = doc.querySelector('[data-testid="chat-title"], h1.chat-title, .chat-start-marker, div[data-testid="conversation-header"]');
     if (topMarker) {
       return true;
     }
 
-    // If scrollTop <= 5, we are at the top of the scroll container
+    
     return metrics.isAtTop;
   }
 

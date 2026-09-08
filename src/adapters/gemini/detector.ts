@@ -1,8 +1,6 @@
 import { ConversationState } from '../types.ts';
 
-/**
- * Checks if a given URL belongs to Google Gemini.
- */
+
 export function isGeminiUrl(url: URL): boolean {
   const host = url.hostname.toLowerCase();
   return (
@@ -13,9 +11,7 @@ export function isGeminiUrl(url: URL): boolean {
   );
 }
 
-/**
- * Detects the conversation status on the current Gemini page.
- */
+
 export function detectGeminiState(doc: Document): ConversationState {
   const url = new URL(doc.location?.href || 'https://gemini.google.com/app');
   const isMatch = isGeminiUrl(url);
@@ -27,14 +23,14 @@ export function detectGeminiState(doc: Document): ConversationState {
     };
   }
 
-  // Extract conversation ID from URL: gemini.google.com/app/<id>
+  
   const pathParts = url.pathname.split('/').filter(Boolean);
   let conversationId: string | undefined;
   if (pathParts[0] === 'app' && pathParts[1] && pathParts[1] !== 'new') {
     conversationId = pathParts[1];
   }
 
-  // Detect conversation turns in DOM — prefer top-level turn containers
+  
   const genericTurns = doc.querySelectorAll(
     'div[data-test-id="conversation-turn"], conversation-turn'
   );
@@ -43,7 +39,7 @@ export function detectGeminiState(doc: Document): ConversationState {
   if (genericTurns.length > 0) {
     messageCount = genericTurns.length;
   } else {
-    // Fallback: count individual user/assistant elements
+    
     const userTurns = doc.querySelectorAll(
       'user-query, .user-query-container, div[data-test-id="user-query"]'
     );
@@ -55,13 +51,23 @@ export function detectGeminiState(doc: Document): ConversationState {
 
   const isInConversation = messageCount > 0 || (!!conversationId && conversationId !== 'app');
 
-  // Extract conversation title
+  
   let title = '';
-  const titleEl = doc.querySelector<HTMLElement>(
-    'div[data-test-id="conversation-title"], .conversation-title, h1.title, .chat-title'
-  );
-  if (titleEl && titleEl.textContent?.trim()) {
-    title = titleEl.textContent.trim();
+  if (conversationId) {
+    const activeSidebarLink = doc.querySelector(`a[href*="${conversationId}"]`);
+    if (activeSidebarLink) {
+      const titleEl = activeSidebarLink.querySelector('.chat-title, [data-test-id="chat-title"], .title') || activeSidebarLink;
+      title = titleEl.textContent?.trim() || '';
+    }
+  }
+
+  if (!title) {
+    const titleEl = doc.querySelector<HTMLElement>(
+      'div[data-test-id="conversation-title"], .conversation-title, h1.title, .chat-title'
+    );
+    if (titleEl && titleEl.textContent?.trim()) {
+      title = titleEl.textContent.trim();
+    }
   }
 
   if (!title && doc.title) {
@@ -71,6 +77,9 @@ export function detectGeminiState(doc: Document): ConversationState {
       .trim();
   }
 
+  
+  const isStreaming = !!doc.querySelector('button[aria-label="Stop generating"], button[mattooltip="Stop generating"], .stop-button, generating-progress');
+
   return {
     isAvailable: true,
     isInConversation,
@@ -78,5 +87,6 @@ export function detectGeminiState(doc: Document): ConversationState {
     title: title || 'Gemini Conversation',
     messageCount,
     isHistoryFullyLoaded: true,
+    isStreaming,
   };
 }
