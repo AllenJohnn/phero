@@ -1,0 +1,91 @@
+import { extractGeminiContentBlocks } from './extractor.js';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.js';
+export class GeminiCaptureStrategy {
+  providerId = 'gemini';
+  captureCurrentVisibleMessages(doc) {
+    const messages = [];
+    const turnElements = Array.from(doc.querySelectorAll('conversation-turn, div[data-test-id="conversation-turn"], .conversation-turn'));
+    if (turnElements.length > 0) {
+      let turnIndex = 0;
+      for (const turnEl of turnElements) {
+        turnIndex++;
+        const isAssistant = turnEl.querySelector('model-response, .response-container, message-content, div.markdown') || turnEl.classList.contains('model-turn');
+        const role = isAssistant ? 'assistant' : 'user';
+        const bodyContainer = turnEl.querySelector('message-content, .response-container, .query-content, div.markdown') || turnEl;
+        const stableId = turnEl.getAttribute('data-test-id') || turnEl.getAttribute('id') || `turn-fallback-${turnIndex}`;
+        const content = extractGeminiContentBlocks(bodyContainer);
+        if (content.length > 0) {
+          messages.push({
+            id: stableId,
+            role,
+            content,
+            timestamp: Date.now()
+          });
+        }
+      }
+    } else {
+      const userElements = Array.from(doc.querySelectorAll('user-query, .user-query-container, div[data-test-id="user-query"]'));
+      const assistantElements = Array.from(doc.querySelectorAll('model-response, .response-container, div[data-test-id="model-response"]'));
+      const maxLen = Math.max(userElements.length, assistantElements.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (userElements[i]) {
+          const content = extractGeminiContentBlocks(userElements[i]);
+          if (content.length > 0) {
+            messages.push({
+              id: `turn-fallback-user-${i + 1}`,
+              role: 'user',
+              content,
+              timestamp: Date.now()
+            });
+          }
+        }
+        if (assistantElements[i]) {
+          const content = extractGeminiContentBlocks(assistantElements[i]);
+          if (content.length > 0) {
+            messages.push({
+              id: `turn-fallback-assistant-${i + 1}`,
+              role: 'assistant',
+              content,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+    return messages;
+  }
+  isAtBeginning(doc, _messages) {
+    const container = this.getScrollContainer(doc);
+    const metrics = getScrollMetrics(container, doc);
+    if (!metrics.isAtTop) {
+      return false;
+    }
+    const topGreeting = doc.querySelector('div.greeting, .gemini-intro-title, div[data-test-id="conversation-title"], .chat-history-start');
+    if (topGreeting) {
+      return true;
+    }
+    return metrics.isAtTop;
+  }
+  getScrollContainer(doc) {
+    const turnElements = Array.from(doc.querySelectorAll('conversation-turn, div[data-test-id="conversation-turn"], user-query, model-response'));
+    return findActiveScrollContainer(doc, turnElements);
+  }
+  async scrollUp(container) {
+    const doc = (container instanceof HTMLElement ? container.ownerDocument : typeof document !== 'undefined' ? document : null) || document;
+    await executeScrollUp(doc, container);
+  }
+  async waitForNewMessages(doc, beforeTurnRange, timeoutMs = 2500) {
+    const startTime = Date.now();
+    return new Promise(resolve => {
+      const check = () => {
+        const currentCount = doc.querySelectorAll('conversation-turn, user-query').length;
+        if (currentCount !== beforeTurnRange.totalTurnsInDom || Date.now() - startTime >= timeoutMs) {
+          resolve(currentCount !== beforeTurnRange.totalTurnsInDom);
+          return;
+        }
+        requestAnimationFrame(check);
+      };
+      check();
+    });
+  }
+}

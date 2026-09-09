@@ -1,0 +1,132 @@
+import { defineConfig, build } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { copyFileSync, existsSync, mkdirSync } from 'fs';
+export default defineConfig({
+  plugins: [react(), {
+    name: 'build-extension-bundles',
+    async closeBundle() {
+      if (!existsSync('dist')) {
+        mkdirSync('dist', {
+          recursive: true
+        });
+      }
+
+      // 1. Bundle content.js as a completely self-contained IIFE (no imports)
+      await build({
+        configFile: false,
+        plugins: [react()],
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, './src')
+          }
+        },
+        define: {
+          'process.env.NODE_ENV': JSON.stringify('production')
+        },
+        build: {
+          emptyOutDir: false,
+          outDir: 'dist',
+          lib: {
+            entry: path.resolve(__dirname, 'src/content/index.js'),
+            name: 'PheroContent',
+            formats: ['iife'],
+            fileName: () => 'content.js'
+          },
+          rollupOptions: {
+            output: {
+              extend: true,
+              inlineDynamicImports: true
+            }
+          }
+        }
+      });
+
+      // 2. Bundle page-world.js
+      await build({
+        configFile: false,
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, './src')
+          }
+        },
+        define: {
+          'process.env.NODE_ENV': JSON.stringify('production')
+        },
+        build: {
+          emptyOutDir: false,
+          outDir: 'dist',
+          lib: {
+            entry: path.resolve(__dirname, 'src/adapters/chatgpt/page-world.js'),
+            name: 'PheroPageWorld',
+            formats: ['iife'],
+            fileName: () => 'page-world.js'
+          }
+        }
+      });
+
+      // 2.5 Bundle background.js as a clean self-contained service worker
+      await build({
+        configFile: false,
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, './src')
+          }
+        },
+        define: {
+          'process.env.NODE_ENV': JSON.stringify('production')
+        },
+        build: {
+          emptyOutDir: false,
+          outDir: 'dist',
+          lib: {
+            entry: path.resolve(__dirname, 'src/background/index.js'),
+            name: 'PheroBackground',
+            formats: ['es'],
+            fileName: () => 'background.js'
+          },
+          rollupOptions: {
+            output: {
+              inlineDynamicImports: true
+            }
+          }
+        }
+      });
+
+      // 3. Copy manifest.json
+      if (existsSync('manifest.json')) {
+        copyFileSync('manifest.json', 'dist/manifest.json');
+      }
+
+      // 4. Copy icons directory
+      if (existsSync('public/icons')) {
+        if (!existsSync('dist/icons')) {
+          mkdirSync('dist/icons', {
+            recursive: true
+          });
+        }
+        const {
+          readdirSync
+        } = await import('fs');
+        const files = readdirSync('public/icons');
+        for (const file of files) {
+          copyFileSync(path.join('public/icons', file), path.join('dist/icons', file));
+        }
+      }
+    }
+  }],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        popup: path.resolve(__dirname, 'src/ui/popup/index.html')
+      }
+    }
+  }
+});

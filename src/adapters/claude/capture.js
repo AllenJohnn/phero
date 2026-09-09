@@ -1,0 +1,105 @@
+import { extractClaudeContentBlocks } from './extractor.js';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.js';
+export class ClaudeCaptureStrategy {
+  providerId = 'claude';
+  captureCurrentVisibleMessages(doc) {
+    const messages = [];
+    let turnElements = Array.from(doc.querySelectorAll('div[data-test-render-count], div[data-testid="chat-message"]'));
+    if (turnElements.length === 0) {
+      turnElements = Array.from(doc.querySelectorAll('div.group\\/message'));
+    }
+    if (turnElements.length > 0) {
+      let turnIndex = 0;
+      for (const turnEl of turnElements) {
+        turnIndex++;
+        const isAssistant = !!turnEl.querySelector('.font-claude-message') || !!turnEl.querySelector('div.standard-markdown') || turnEl.classList.contains('font-claude-message') || !!turnEl.querySelector('[data-message-author-role="assistant"]') || !!turnEl.querySelector('.agent-turn');
+        const isUser = !!turnEl.querySelector('.font-user-message') || !!turnEl.querySelector('[data-message-author-role="user"]') || turnEl.classList.contains('font-user-message');
+        let role;
+        if (isAssistant) {
+          role = 'assistant';
+        } else if (isUser) {
+          role = 'user';
+        } else {
+          role = turnIndex % 2 === 1 ? 'user' : 'assistant';
+        }
+        const stableId = turnEl.getAttribute('data-message-id') || turnEl.getAttribute('data-testid') || `turn-fallback-${turnIndex}`;
+        const blocks = extractClaudeContentBlocks(turnEl);
+        if (blocks.length > 0) {
+          messages.push({
+            id: stableId,
+            role,
+            content: blocks,
+            timestamp: Date.now()
+          });
+        }
+      }
+    } else {
+      const userTurns = Array.from(doc.querySelectorAll('.font-user-message, div[data-is-streaming="false"]:has(.font-user-message), div.whitespace-pre-wrap'));
+      const assistantTurns = Array.from(doc.querySelectorAll('.font-claude-message, div.standard-markdown'));
+      const maxLen = Math.max(userTurns.length, assistantTurns.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (userTurns[i]) {
+          const blocks = extractClaudeContentBlocks(userTurns[i]);
+          if (blocks.length > 0) {
+            messages.push({
+              id: `turn-fallback-user-${i + 1}`,
+              role: 'user',
+              content: blocks,
+              timestamp: Date.now()
+            });
+          }
+        }
+        if (assistantTurns[i]) {
+          const blocks = extractClaudeContentBlocks(assistantTurns[i]);
+          if (blocks.length > 0) {
+            messages.push({
+              id: `turn-fallback-assistant-${i + 1}`,
+              role: 'assistant',
+              content: blocks,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+    return messages;
+  }
+  isAtBeginning(doc, _messages) {
+    const loadMoreBtn = doc.querySelector('button[data-testid="load-more-messages"], .load-earlier-messages, [data-testid="load-earlier-turns"]');
+    if (loadMoreBtn) {
+      return false;
+    }
+    const container = this.getScrollContainer(doc);
+    const metrics = getScrollMetrics(container, doc);
+    if (!metrics.isAtTop) {
+      return false;
+    }
+    const topMarker = doc.querySelector('[data-testid="chat-title"], h1.chat-title, .chat-start-marker, div[data-testid="conversation-header"]');
+    if (topMarker) {
+      return true;
+    }
+    return metrics.isAtTop;
+  }
+  getScrollContainer(doc) {
+    const turnElements = Array.from(doc.querySelectorAll('div[data-test-render-count], div[data-testid="chat-message"], div.group\\/message'));
+    return findActiveScrollContainer(doc, turnElements);
+  }
+  async scrollUp(container) {
+    const doc = (container instanceof HTMLElement ? container.ownerDocument : typeof document !== 'undefined' ? document : null) || document;
+    await executeScrollUp(doc, container);
+  }
+  async waitForNewMessages(doc, beforeTurnRange, timeoutMs = 2500) {
+    const startTime = Date.now();
+    return new Promise(resolve => {
+      const check = () => {
+        const currentCount = doc.querySelectorAll('div[data-test-render-count], div.group\\/message').length;
+        if (currentCount !== beforeTurnRange.totalTurnsInDom || Date.now() - startTime >= timeoutMs) {
+          resolve(currentCount !== beforeTurnRange.totalTurnsInDom);
+          return;
+        }
+        requestAnimationFrame(check);
+      };
+      check();
+    });
+  }
+}
