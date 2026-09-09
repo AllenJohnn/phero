@@ -58,10 +58,20 @@
 ## 🔲 REMAINING ITEMS (Priority Order)
 
 ### 9. Bi-directional history (Nice-to-Have)
-### 10. Keyboard shortcut Ctrl+Shift+H (Nice-to-Have)
 ### 11. Selective transfer (Nice-to-Have)
 ### 12. Multi-model awareness (Nice-to-Have)
-### 13. Export to markdown/JSON (Nice-to-Have)
+
+---
+
+## ✅ NEWLY COMPLETED
+
+### 10. Keyboard shortcut Ctrl+Shift+H
+- Added `trigger-handoff` command to `manifest.json` using the built-in `_execute_action` to open the popup automatically on shortcut press.
+
+### 13. Export to markdown/JSON
+- Added `handleExport` button to the main Popup UI next to the provider badge.
+- Added listener in the content script for `PHERO_EXPORT`.
+- Captures conversation logic and downloads it locally as a timestamped JSON file.
 
 ---
 

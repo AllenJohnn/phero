@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import { PheroLogo, ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.jsx';
 import { Logger } from '../../shared/logger.js';
 import { AdapterRegistry } from '../../adapters/registry.js';
@@ -92,6 +93,17 @@ export const Popup = () => {
       setPendingDest(null);
     }
   };
+
+  const handleExport = async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id) return;
+      await chrome.tabs.sendMessage(tab.id, { type: 'PHERO_EXPORT' });
+    } catch (err) {
+      Logger.error('Export failed', err);
+    }
+  };
+
   const getProviderBadge = () => {
     if (providerId === 'chatgpt') {
       return <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#141416] border border-[#232326] text-[11px] text-[#A1A1AA] font-medium tracking-tight">
@@ -113,8 +125,8 @@ export const Popup = () => {
     }
     return null;
   };
+
   return <div className="w-[260px] bg-[#09090B] text-[#F4F4F6] p-3.5 font-sans antialiased select-none border border-[#232326] rounded-xl shadow-2xl">
-      {}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1E1E22]">
         <div className="flex items-center gap-1.5">
           <div className="flex items-center justify-center text-[#3B82F6]">
@@ -124,13 +136,23 @@ export const Popup = () => {
             PHERO
           </span>
         </div>
-        {getProviderBadge()}
+        <div className="flex items-center gap-2">
+          {providerId && (
+            <button
+              onClick={handleExport}
+              title="Export to JSON"
+              className="p-1 text-[#8A8A93] hover:text-[#F4F4F6] hover:bg-[#1E1E22] rounded transition-colors"
+            >
+              <Download size={14} />
+            </button>
+          )}
+          {getProviderBadge()}
+        </div>
       </div>
 
-      {}
       {loading ? <div className="py-4 flex items-center justify-center text-[#71717A] gap-2 text-xs">
           <SpinnerIcon size={13} className="text-[#3B82F6]" />
-          <span>Detecting workspace…</span>
+          <span>Detecting workspace...</span>
         </div> : !providerId ? <div className="py-3 px-1 text-center text-xs text-[#8A8A93] leading-relaxed">
           Open a ChatGPT, Claude, or Gemini tab to carry it forward.
         </div> : <div className="space-y-1.5">

@@ -139,6 +139,24 @@ function attachMessageListener() {
       })();
       return true;
     }
+    if (message.type === 'PHERO_EXPORT') {
+      (async () => {
+        try {
+          const extraction = await adapter.extractConversation(document);
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(extraction.conversation, null, 2));
+          const downloadAnchorNode = document.createElement('a');
+          downloadAnchorNode.setAttribute("href", dataStr);
+          const title = (extraction.conversation.title || 'export').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          downloadAnchorNode.setAttribute("download", `phero_${title}_${Date.now()}.json`);
+          document.body.appendChild(downloadAnchorNode);
+          downloadAnchorNode.click();
+          downloadAnchorNode.remove();
+        } catch (err) {
+          Logger.error('Export failed', err);
+        }
+      })();
+      return true;
+    }
     return false;
   });
 }
