@@ -1,4 +1,5 @@
 import { Logger } from '../../shared/logger.js';
+import { CONTINUATION_HEADER_MARKER } from '../../core/context/prompt-builder.js';
 export async function waitForGeminiInput(doc, timeoutMs = 14000) {
   const startTime = Date.now();
   Logger.info('Waiting for Gemini composer editor...');
@@ -59,7 +60,7 @@ export async function injectGemini(doc, prompt) {
           err: String(err)
         });
       }
-      if (!inserted || !composer.textContent?.includes('You are continuing')) {
+      if (!inserted || !composer.textContent?.includes(CONTINUATION_HEADER_MARKER)) {
         composer.innerHTML = '';
         const lines = prompt.split('\n');
         for (const line of lines) {
@@ -105,7 +106,7 @@ export async function injectGemini(doc, prompt) {
     }
     await new Promise(r => setTimeout(r, 100));
     const contentText = composer.textContent || composer.value || '';
-    const verified = contentText.length > 50 && contentText.includes('You are continuing') && contentText.includes('INSTRUCTIONS');
+    const verified = contentText.length > 50 && contentText.includes(CONTINUATION_HEADER_MARKER) && contentText.includes('INSTRUCTIONS');
     Logger.info('Gemini injection verification status', {
       verified,
       contentLength: contentText.length

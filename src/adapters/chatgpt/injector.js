@@ -1,4 +1,5 @@
 import { Logger } from '../../shared/logger.js';
+import { CONTINUATION_HEADER_MARKER } from '../../core/context/prompt-builder.js';
 export async function waitForChatGPTInput(doc, timeoutMs = 8000) {
   const startTime = Date.now();
   return new Promise((resolve, reject) => {
@@ -47,7 +48,7 @@ export async function injectChatGPT(doc, prompt) {
       }
     }
     const currentText = composer.textContent || composer.value || '';
-    const verified = currentText.length > 0 && currentText.includes('You are continuing');
+    const verified = currentText.length > 0 && currentText.includes(CONTINUATION_HEADER_MARKER);
     Logger.info('ChatGPT injection result', {
       verified
     });

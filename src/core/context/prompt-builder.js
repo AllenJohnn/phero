@@ -1,5 +1,7 @@
 import { partitionConversation, getBudgetConfigForProvider } from './budget.js';
 import { AdapterRegistry } from '../../adapters/registry.js';
+
+export const CONTINUATION_HEADER_MARKER = 'You are continuing';
 export function formatContentBlocks(blocks) {
   return blocks.map(block => {
     if (block.type === 'code') {

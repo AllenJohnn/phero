@@ -1,5 +1,5 @@
 import { extractGeminiContentBlocks } from './extractor.js';
-import { findActiveScrollContainer, executeScrollUp, getScrollMetrics } from '../../core/capture/scroll-helper.js';
+import { findActiveScrollContainer, executeScrollUp, getScrollMetrics, getVisibleTurnRange } from '../../core/capture/scroll-helper.js';
 export class GeminiCaptureStrategy {
   providerId = 'gemini';
   captureCurrentVisibleMessages(doc) {
@@ -75,17 +75,31 @@ export class GeminiCaptureStrategy {
     await executeScrollUp(doc, container);
   }
   async waitForNewMessages(doc, beforeTurnRange, timeoutMs = 2500) {
-    const startTime = Date.now();
     return new Promise(resolve => {
+      let timeoutId;
+      let observer;
       const check = () => {
-        const currentCount = doc.querySelectorAll('conversation-turn, user-query').length;
-        if (currentCount !== beforeTurnRange.totalTurnsInDom || Date.now() - startTime >= timeoutMs) {
-          resolve(currentCount !== beforeTurnRange.totalTurnsInDom);
-          return;
+        const currentRange = getVisibleTurnRange(doc);
+        if (currentRange.earliestTurnId !== 'none' && currentRange.earliestTurnId !== beforeTurnRange.earliestTurnId) {
+          cleanup(true);
         }
-        requestAnimationFrame(check);
       };
+      const cleanup = result => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (observer) observer.disconnect();
+        resolve(result);
+      };
+      observer = new MutationObserver(() => {
+        requestAnimationFrame(() => check());
+      });
+      observer.observe(doc.body, {
+        childList: true,
+        subtree: true
+      });
       check();
+      timeoutId = setTimeout(() => {
+        cleanup(false);
+      }, timeoutMs);
     });
   }
 }

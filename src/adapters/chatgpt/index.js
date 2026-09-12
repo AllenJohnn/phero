@@ -3,7 +3,7 @@ import { extractChatGPTConversation } from './extractor.js';
 import { waitForChatGPTInput, injectChatGPT } from './injector.js';
 import { startManualScrollDiagnostics } from './diagnostics.js';
 import { installNetworkCaptureListener } from './network-capture.js';
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   window.__PHERO_START_DIAGNOSTICS__ = () => {
     startManualScrollDiagnostics(document);
   };

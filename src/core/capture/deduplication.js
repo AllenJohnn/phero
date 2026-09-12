@@ -15,7 +15,7 @@ export function isStableMessageId(id) {
   if (id === 'conversation-turn' || id === 'chat-message') return false;
   return true;
 }
-export function deduplicateMessagesWithAudit(existingMessages, incomingMessages) {
+export function deduplicateMessagesWithAudit(firstBatch, secondBatch) {
   const seenIds = new Set();
   const seenFingerprints = new Set();
   const merged = [];
@@ -23,7 +23,7 @@ export function deduplicateMessagesWithAudit(existingMessages, incomingMessages)
   let skippedDuplicateFingerprintCount = 0;
   let stableIdCount = 0;
   let fallbackIdCount = 0;
-  const allMessages = [...existingMessages, ...incomingMessages];
+  const allMessages = [...firstBatch, ...secondBatch];
   for (const msg of allMessages) {
     const hasMeaningfulId = isStableMessageId(msg.id);
     const fingerprint = computeContentFingerprint(msg);
@@ -47,8 +47,8 @@ export function deduplicateMessagesWithAudit(existingMessages, incomingMessages)
   return {
     messages: merged,
     audit: {
-      totalIncoming: incomingMessages.length,
-      totalExisting: existingMessages.length,
+      totalFirstBatch: firstBatch.length,
+      totalSecondBatch: secondBatch.length,
       retainedCount: merged.length,
       skippedDuplicateIdCount,
       skippedDuplicateFingerprintCount,
@@ -57,8 +57,8 @@ export function deduplicateMessagesWithAudit(existingMessages, incomingMessages)
     }
   };
 }
-export function deduplicateMessages(existingMessages, incomingMessages) {
-  return deduplicateMessagesWithAudit(existingMessages, incomingMessages).messages;
+export function deduplicateMessages(firstBatch, secondBatch) {
+  return deduplicateMessagesWithAudit(firstBatch, secondBatch).messages;
 }
 export function reindexMessages(messages) {
   return messages.map((msg, index) => ({

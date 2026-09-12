@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Download } from 'lucide-react';
-import { PheroLogo, ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon } from '../icons/index.jsx';
+import { PheroLogo, ClaudeLogo, ChatGPTLogo, GeminiLogo, TransitArrow, SpinnerIcon, CheckIcon, AlertIcon, DownloadIcon } from '../icons/index.jsx';
 import { Logger } from '../../shared/logger.js';
 import { AdapterRegistry } from '../../adapters/registry.js';
 export const Popup = () => {
@@ -11,6 +10,7 @@ export const Popup = () => {
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [errorText, setErrorText] = useState(null);
   const [conversationState, setConversationState] = useState(null);
+  const [exporting, setExporting] = useState(false);
   useEffect(() => {
     async function checkCurrentTab() {
       try {
@@ -96,11 +96,20 @@ export const Popup = () => {
 
   const handleExport = async () => {
     try {
+      setExporting(true);
+      setErrorText(null);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) return;
-      await chrome.tabs.sendMessage(tab.id, { type: 'PHERO_EXPORT' });
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'PHERO_EXPORT' });
+      if (response && !response.success) {
+        throw new Error(response.error || 'Export failed');
+      }
     } catch (err) {
       Logger.error('Export failed', err);
+      const msg = err instanceof Error ? err.message : 'Export failed';
+      setErrorText(msg.includes('Receiving end') ? 'Please refresh the chat page once.' : msg);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -140,10 +149,11 @@ export const Popup = () => {
           {providerId && (
             <button
               onClick={handleExport}
+              disabled={exporting}
               title="Export to JSON"
-              className="p-1 text-[#8A8A93] hover:text-[#F4F4F6] hover:bg-[#1E1E22] rounded transition-colors"
+              className="p-1 text-[#8A8A93] hover:text-[#F4F4F6] hover:bg-[#1E1E22] rounded transition-colors disabled:opacity-50"
             >
-              <Download size={14} />
+              {exporting ? <SpinnerIcon size={14} className="text-[#3B82F6]" /> : <DownloadIcon size={14} />}
             </button>
           )}
           {getProviderBadge()}

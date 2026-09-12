@@ -143,16 +143,21 @@ function attachMessageListener() {
       (async () => {
         try {
           const extraction = await adapter.extractConversation(document);
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(extraction.conversation, null, 2));
+          const jsonStr = JSON.stringify(extraction.conversation, null, 2);
+          const blob = new Blob([jsonStr], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
           const downloadAnchorNode = document.createElement('a');
-          downloadAnchorNode.setAttribute("href", dataStr);
+          downloadAnchorNode.setAttribute('href', url);
           const title = (extraction.conversation.title || 'export').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-          downloadAnchorNode.setAttribute("download", `phero_${title}_${Date.now()}.json`);
+          downloadAnchorNode.setAttribute('download', `phero_${title}_${Date.now()}.json`);
           document.body.appendChild(downloadAnchorNode);
           downloadAnchorNode.click();
           downloadAnchorNode.remove();
+          URL.revokeObjectURL(url);
+          sendResponse({ success: true });
         } catch (err) {
           Logger.error('Export failed', err);
+          sendResponse({ success: false, error: err instanceof Error ? err.message : 'Export failed' });
         }
       })();
       return true;
