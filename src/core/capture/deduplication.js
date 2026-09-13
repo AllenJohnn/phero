@@ -57,9 +57,11 @@ export function deduplicateMessagesWithAudit(firstBatch, secondBatch) {
     }
   };
 }
+
 export function deduplicateMessages(firstBatch, secondBatch) {
   return deduplicateMessagesWithAudit(firstBatch, secondBatch).messages;
 }
+
 export function reindexMessages(messages) {
   return messages.map((msg, index) => ({
     ...msg,

@@ -31,12 +31,5 @@ export class AdapterRegistry {
     }
     return undefined;
   }
-  findAdapterByDocument(doc) {
-    try {
-      const url = new URL(doc.location?.href || 'https://unknown');
-      return this.findAdapterByUrl(url);
-    } catch {
-      return undefined;
-    }
-  }
+
 }

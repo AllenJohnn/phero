@@ -97,10 +97,12 @@ export class InjectionCoordinator {
         }
       </style>
       <div class="banner">
-        <span>${type === 'success' ? '✓' : '✦'}</span>
-        <span>${text}</span>
+        <span class="icon"></span>
+        <span class="text"></span>
       </div>
     `;
+    shadow.querySelector('.icon').textContent = type === 'success' ? '✓' : '✦';
+    shadow.querySelector('.text').textContent = text;
   }
   static showFallbackBanner(handoff) {
     this.removeBanner();
@@ -172,7 +174,7 @@ export class InjectionCoordinator {
       </style>
       <div class="modal">
         <div class="title">Automatic Placement Incomplete</div>
-        <div class="desc">PHERO prepared the context but couldn't place it into ${destName}'s editor. You can copy the continuation prompt below.</div>
+        <div class="desc"></div>
         <div class="actions">
           <button class="btn-dismiss" id="btn-dismiss">Dismiss</button>
           <button class="btn-retry" id="btn-retry">Retry</button>
@@ -180,6 +182,7 @@ export class InjectionCoordinator {
         </div>
       </div>
     `;
+    shadow.querySelector('.desc').textContent = `PHERO prepared the context but couldn't place it into ${destName}'s editor. You can copy the continuation prompt below.`;
     shadow.getElementById('btn-dismiss')?.addEventListener('click', () => {
       this.removeBanner();
     });

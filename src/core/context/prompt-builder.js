@@ -36,16 +36,7 @@ export function buildContinuationPrompt(conversation, options = {}) {
     extractedDecisions,
     extractedUnresolvedIssues
   } = partitionConversation(messages, budgetConfig);
-  let lastUserMessage;
-  const recentMessageIds = new Set(recentMessages.map(m => m.id));
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'user') {
-      if (!recentMessageIds.has(messages[i].id)) {
-        lastUserMessage = messages[i];
-      }
-      break;
-    }
-  }
+
   const sections = [];
   sections.push('You are continuing an ongoing conversation transferred from another AI assistant.\nThe user has moved this conversation here so they can continue working without losing context.');
   const registry = AdapterRegistry.getInstance();
@@ -92,9 +83,8 @@ export function buildContinuationPrompt(conversation, options = {}) {
   }
   const baseSections = sections.join('\n\n');
   const recentTurnsFormatted = recentMessages.map(formatMessageTurn).join('\n\n---\n\n');
-  const currentRequestText = lastUserMessage ? `=== CURRENT REQUEST ===\n${formatContentBlocks(lastUserMessage.content)}` : '';
   const instructionsText = '=== INSTRUCTIONS ===\nContinue directly from where the previous assistant stopped.\nDo not restart the task.\nDo not ask the user to repeat information already provided.\nUse the supplied context as the working context for this conversation.';
-  const mandatoryLength = baseSections.length + recentTurnsFormatted.length + currentRequestText.length + instructionsText.length + 100;
+  const mandatoryLength = baseSections.length + recentTurnsFormatted.length + instructionsText.length + 100;
   if (earlierMessages.length > 0) {
     let availableBudget = budgetConfig.maxCharacters - mandatoryLength;
     if (availableBudget > 1000) {
@@ -121,9 +111,7 @@ export function buildContinuationPrompt(conversation, options = {}) {
     }
   }
   sections.push(`=== RECENT CONVERSATION ===\n${recentTurnsFormatted}`);
-  if (lastUserMessage) {
-    sections.push(currentRequestText);
-  }
+
   sections.push(instructionsText);
   return sections.join('\n\n');
 }

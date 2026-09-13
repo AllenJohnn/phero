@@ -1,45 +1,24 @@
 import { Logger } from '../../shared/logger.js';
 import { CONTINUATION_HEADER_MARKER } from '../../core/context/prompt-builder.js';
-export async function waitForGeminiInput(doc, timeoutMs = 14000) {
-  const startTime = Date.now();
-  Logger.info('Waiting for Gemini composer editor...');
-  return new Promise((resolve, reject) => {
-    const findComposer = () => {
-      return doc.querySelector('rich-textarea div.ql-editor[contenteditable="true"]') || doc.querySelector('div.ql-editor[contenteditable="true"]') || doc.querySelector('rich-textarea div[contenteditable="true"]') || doc.querySelector('div[contenteditable="true"][role="textbox"]') || doc.querySelector('div[contenteditable="true"][aria-label*="prompt" i]') || doc.querySelector('div[contenteditable="true"][aria-label*="Ask" i]') || doc.querySelector('div[contenteditable="true"][aria-label*="Gemini" i]') || doc.querySelector('div[contenteditable="true"]') || doc.querySelector('textarea[placeholder*="Ask" i]') || doc.querySelector('textarea');
-    };
-    const immediate = findComposer();
-    if (immediate) {
-      Logger.info('Found Gemini composer immediately');
-      resolve(immediate);
-      return;
-    }
-    const observer = new MutationObserver(() => {
-      const el = findComposer();
-      if (el) {
-        observer.disconnect();
-        Logger.info('Found Gemini composer via MutationObserver');
-        resolve(el);
-      } else if (Date.now() - startTime >= timeoutMs) {
-        observer.disconnect();
-        reject(new Error(`Timed out after ${timeoutMs}ms waiting for Gemini composer.`));
-      }
-    });
-    observer.observe(doc.body || doc.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true
-    });
-    setTimeout(() => {
-      observer.disconnect();
-      const el = findComposer();
-      if (el) {
-        resolve(el);
-      } else {
-        reject(new Error(`Timed out after ${timeoutMs}ms waiting for Gemini composer.`));
-      }
-    }, timeoutMs);
-  });
+import { waitForComposer, fallbackDOMInjection } from '../../shared/composer-utils.js';
+
+const GEMINI_COMPOSER_SELECTORS = [
+  'rich-textarea div.ql-editor[contenteditable="true"]',
+  'div.ql-editor[contenteditable="true"]',
+  'rich-textarea div[contenteditable="true"]',
+  'div[contenteditable="true"][role="textbox"]',
+  'div[contenteditable="true"][aria-label*="prompt" i]',
+  'div[contenteditable="true"][aria-label*="Ask" i]',
+  'div[contenteditable="true"][aria-label*="Gemini" i]',
+  'div[contenteditable="true"]',
+  'textarea[placeholder*="Ask" i]',
+  'textarea'
+];
+
+export function waitForGeminiInput(doc, timeoutMs = 14000) {
+  return waitForComposer(doc, { selectors: GEMINI_COMPOSER_SELECTORS, providerName: 'Gemini', timeoutMs });
 }
+
 export async function injectGemini(doc, prompt) {
   try {
     const composer = await waitForGeminiInput(doc);
@@ -61,35 +40,8 @@ export async function injectGemini(doc, prompt) {
         });
       }
       if (!inserted || !composer.textContent?.includes(CONTINUATION_HEADER_MARKER)) {
-        composer.innerHTML = '';
-        const lines = prompt.split('\n');
-        for (const line of lines) {
-          const p = doc.createElement('p');
-          if (line.trim().length === 0) {
-            p.innerHTML = '<br>';
-          } else {
-            p.textContent = line;
-          }
-          composer.appendChild(p);
-        }
-        composer.dispatchEvent(new InputEvent('beforeinput', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: prompt
-        }));
-        composer.dispatchEvent(new InputEvent('input', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: prompt
-        }));
-        composer.dispatchEvent(new Event('input', {
-          bubbles: true
-        }));
-        composer.dispatchEvent(new Event('change', {
-          bubbles: true
-        }));
+        fallbackDOMInjection(composer, prompt, doc);
+        // Gemini's Quill editor needs an additional keyup to register the change
         composer.dispatchEvent(new KeyboardEvent('keyup', {
           bubbles: true,
           key: ' '
@@ -97,12 +49,8 @@ export async function injectGemini(doc, prompt) {
       }
     } else if (composer instanceof HTMLTextAreaElement) {
       composer.value = prompt;
-      composer.dispatchEvent(new Event('input', {
-        bubbles: true
-      }));
-      composer.dispatchEvent(new Event('change', {
-        bubbles: true
-      }));
+      composer.dispatchEvent(new Event('input', { bubbles: true }));
+      composer.dispatchEvent(new Event('change', { bubbles: true }));
     }
     await new Promise(r => setTimeout(r, 100));
     const contentText = composer.textContent || composer.value || '';

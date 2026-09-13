@@ -1,45 +1,20 @@
 import { Logger } from '../../shared/logger.js';
 import { CONTINUATION_HEADER_MARKER } from '../../core/context/prompt-builder.js';
-export async function waitForClaudeInput(doc, timeoutMs = 12000) {
-  const startTime = Date.now();
-  Logger.info('Waiting for Claude composer editor...');
-  return new Promise((resolve, reject) => {
-    const findComposer = () => {
-      return doc.querySelector('div.ProseMirror[contenteditable="true"]') || doc.querySelector('div[contenteditable="true"][data-placeholder]') || doc.querySelector('fieldset div[contenteditable="true"]') || doc.querySelector('div[contenteditable="true"]') || doc.querySelector('textarea[placeholder*="Reply"]') || doc.querySelector('textarea');
-    };
-    const immediate = findComposer();
-    if (immediate) {
-      Logger.info('Found Claude composer immediately');
-      resolve(immediate);
-      return;
-    }
-    const observer = new MutationObserver(() => {
-      const el = findComposer();
-      if (el) {
-        observer.disconnect();
-        Logger.info('Found Claude composer via MutationObserver');
-        resolve(el);
-      } else if (Date.now() - startTime >= timeoutMs) {
-        observer.disconnect();
-        reject(new Error(`Timed out after ${timeoutMs}ms waiting for Claude composer.`));
-      }
-    });
-    observer.observe(doc.body || doc.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true
-    });
-    setTimeout(() => {
-      observer.disconnect();
-      const el = findComposer();
-      if (el) {
-        resolve(el);
-      } else {
-        reject(new Error(`Timed out after ${timeoutMs}ms waiting for Claude composer.`));
-      }
-    }, timeoutMs);
-  });
+import { waitForComposer, fallbackDOMInjection } from '../../shared/composer-utils.js';
+
+const CLAUDE_COMPOSER_SELECTORS = [
+  'div.ProseMirror[contenteditable="true"]',
+  'div[contenteditable="true"][data-placeholder]',
+  'fieldset div[contenteditable="true"]',
+  'div[contenteditable="true"]',
+  'textarea[placeholder*="Reply"]',
+  'textarea'
+];
+
+export function waitForClaudeInput(doc, timeoutMs = 12000) {
+  return waitForComposer(doc, { selectors: CLAUDE_COMPOSER_SELECTORS, providerName: 'Claude', timeoutMs });
 }
+
 export async function injectClaude(doc, prompt) {
   try {
     const composer = await waitForClaudeInput(doc);
@@ -61,44 +36,12 @@ export async function injectClaude(doc, prompt) {
         });
       }
       if (!inserted || !composer.textContent?.includes(CONTINUATION_HEADER_MARKER)) {
-        composer.innerHTML = '';
-        const lines = prompt.split('\n');
-        for (const line of lines) {
-          const p = doc.createElement('p');
-          if (line.trim().length === 0) {
-            p.innerHTML = '<br>';
-          } else {
-            p.textContent = line;
-          }
-          composer.appendChild(p);
-        }
-        composer.dispatchEvent(new InputEvent('beforeinput', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: prompt
-        }));
-        composer.dispatchEvent(new InputEvent('input', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: prompt
-        }));
-        composer.dispatchEvent(new Event('input', {
-          bubbles: true
-        }));
-        composer.dispatchEvent(new Event('change', {
-          bubbles: true
-        }));
+        fallbackDOMInjection(composer, prompt, doc);
       }
     } else if (composer instanceof HTMLTextAreaElement) {
       composer.value = prompt;
-      composer.dispatchEvent(new Event('input', {
-        bubbles: true
-      }));
-      composer.dispatchEvent(new Event('change', {
-        bubbles: true
-      }));
+      composer.dispatchEvent(new Event('input', { bubbles: true }));
+      composer.dispatchEvent(new Event('change', { bubbles: true }));
     }
     await new Promise(r => setTimeout(r, 80));
     const contentText = composer.textContent || composer.value || '';
