@@ -92,6 +92,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
     }
   }, 500);
   let lastUrl = location.href;
+  const originalFetch = window.fetch;
   function fetchConversationFromApi(uuid) {
     sendLog('[PHERO] PROACTIVE_FETCH for ' + uuid);
     originalFetch(`https://chatgpt.com/backend-api/conversation/${uuid}`, {
@@ -121,7 +122,7 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
   }
   document.addEventListener('__phero_request_conversation_data__', e => {
     const uuid = e.detail;
-    if (uuid && typeof uuid === 'string') {
+    if (uuid && typeof uuid === 'string' && /^[a-zA-Z0-9-]+$/.test(uuid)) {
       fetchConversationFromApi(uuid);
     }
   });
@@ -139,7 +140,6 @@ const PHERO_LOG_EVENT = '__phero_chatgpt_log__';
     subtree: true,
     childList: true
   });
-  const originalFetch = window.fetch;
   window.fetch = async function (...args) {
     const url = typeof args[0] === 'string' ? args[0] : args[0] && args[0].url ? args[0].url : '';
     const response = await originalFetch.apply(this, args);
