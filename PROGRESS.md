@@ -1,6 +1,6 @@
 # PHERO — DOM-Scroll Fix & Claude Network Capture
 
-**Branch:** `scrollfix-claude-network`  
+**Branch:** `testing` (branched from `scrollfix-claude-network`)  
 **Base:** `main` at `b86c8d6`  
 **Last updated:** 2026-09-21
 
@@ -8,7 +8,7 @@
 
 ## 📍 CURRENT STATUS & RESUME POINT: Waiting for Manual QA
 
-**Phase 1** and **Phase 2** are completely implemented, unit-tested (77/77 passing), and committed. 
+**Phase 1** and **Phase 2** are completely implemented, unit-tested (77/77 passing), and committed. (The `scrollfix-claude-network` branch was successfully completed and pushed, and we are now working off the `testing` branch for manual QA).
 
 **Next Steps for the Human Developer:**
 1. Run `npm run build`
@@ -16,7 +16,7 @@
 3. **Test Network Capture**: Open a long Claude chat while logged in. Trigger a handoff and verify it bypasses the slow DOM scroll and instantly captures the correct message count.
 4. **Test DOM Fallback**: Open Claude in a context where you are logged out (or clear the `sessionKey` cookie). Trigger a handoff and verify it gracefully falls back to DOM scrolling without crashing.
 
-*Once manual testing is complete, provide the results to the agent to either fix any discovered bugs or merge this branch into `main`.*
+*Once manual testing is complete, provide the results to the agent to either fix any discovered bugs on the `testing` branch, or merge it into `main`.*
 
 ---
 
