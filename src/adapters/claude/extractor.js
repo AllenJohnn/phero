@@ -135,12 +135,46 @@ export function extractClaudeContentBlocks(turnEl) {
 }
 import { ClaudeCaptureStrategy } from './capture.js';
 import { CaptureOrchestrator } from '../../core/capture/orchestrator.js';
+import { attemptNetworkCapture } from './network-capture.js';
 export async function extractClaudeConversation(doc, options = {}) {
   const state = detectClaudeState(doc);
   Logger.info('Extracting Claude conversation', {
     isAvailable: state.isAvailable,
     messageCount: state.messageCount ?? 0
   });
+
+  if (state.conversationId) {
+    try {
+      const networkResult = await attemptNetworkCapture(location.href);
+      if (networkResult && networkResult.messages.length > 0) {
+        Logger.info('[PHERO] Claude network capture succeeded', {
+          totalMessages: networkResult.messages.length,
+          captureMethod: 'DATA_LEVEL'
+        });
+        return {
+          conversation: {
+            id: state.conversationId,
+            title: networkResult.title || state.title || 'Claude Conversation',
+            sourceProvider: 'claude',
+            createdAt: Date.now(),
+            messages: networkResult.messages,
+            metadata: {
+              url: doc.location?.href,
+              totalDetectedTurns: networkResult.totalMessages,
+              extractedTurns: networkResult.messages.length,
+              isTruncated: false
+            }
+          },
+          isComplete: true,
+          totalTurnsDetected: networkResult.totalMessages
+        };
+      }
+      Logger.info('[PHERO] Claude network capture returned no data, falling back to DOM capture');
+    } catch (err) {
+      Logger.warn('[PHERO] Claude network capture failed, falling back to DOM capture', err);
+    }
+  }
+
   const strategy = new ClaudeCaptureStrategy();
   const captureResult = await CaptureOrchestrator.executeCapture(doc, strategy, {
     providerId: 'claude',

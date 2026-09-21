@@ -9,6 +9,7 @@ export const Popup = () => {
   const [pendingDest, setPendingDest] = useState(null);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [errorText, setErrorText] = useState(null);
+  const [warningMessage, setWarningMessage] = useState(null);
   const [conversationState, setConversationState] = useState(null);
   const [exporting, setExporting] = useState(false);
   useEffect(() => {
@@ -78,6 +79,9 @@ export const Popup = () => {
         }
       }
       if (response && response.success) {
+        if (response.isComplete === false && response.warning) {
+          setWarningMessage(response.warning);
+        }
         setTransferSuccess(true);
         setTimeout(() => {
           window.close();
@@ -202,6 +206,11 @@ export const Popup = () => {
           {errorText && <div className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg leading-snug">
               <AlertIcon size={13} className="shrink-0" />
               <span>{errorText}</span>
+            </div>}
+
+          {warningMessage && <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg leading-snug">
+              <AlertIcon size={13} className="shrink-0" />
+              <span>{warningMessage}</span>
             </div>}
         </div>}
     </div>;

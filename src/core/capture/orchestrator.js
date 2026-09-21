@@ -42,7 +42,8 @@ export class CaptureOrchestrator {
         const activeContainer = refreshContainer();
         const beforeTurnRange = getVisibleTurnRange(doc);
         await strategy.scrollUp(activeContainer);
-        const waitTime = options.scrollDelayMs !== undefined ? options.scrollDelayMs : 1500;
+        const baseWaitTime = options.scrollDelayMs !== undefined ? options.scrollDelayMs : 1500;
+        const waitTime = Math.min(baseWaitTime * (sameStateCount + 1), baseWaitTime * 5);
         await strategy.waitForNewMessages(doc, beforeTurnRange, waitTime);
         const currentContainer = refreshContainer();
         const currentTurnRange = getVisibleTurnRange(doc);
@@ -64,11 +65,11 @@ export class CaptureOrchestrator {
           const maxStalls = metrics.isAtTop ? 6 : 3;
           if (sameStateCount >= maxStalls) {
             Logger.warn('[PHERO] Scrolling stalled mid-conversation. Assuming complete or dead-end.');
-            if (metrics.isAtTop || strategy.isAtBeginning(doc, collectedMessages)) {
+            if (strategy.isAtBeginning(doc, collectedMessages)) {
               completenessState = 'COMPLETE';
               reachedBeginning = true;
             } else {
-              completenessState = 'UNKNOWN';
+              completenessState = metrics.isAtTop ? 'PARTIAL' : 'UNKNOWN';
             }
             break;
           }

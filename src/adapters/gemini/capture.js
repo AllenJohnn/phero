@@ -60,6 +60,11 @@ export class GeminiCaptureStrategy {
     if (!metrics.isAtTop) {
       return false;
     }
+    const searchRoot = container instanceof HTMLElement ? container : doc.querySelector('main') || doc.body;
+    if (searchRoot) {
+      const loadingEl = searchRoot.querySelector('svg.animate-spin, [data-testid*="loading"], [data-testid*="spinner"], [aria-busy="true"], [role="progressbar"], mat-spinner, .loading-indicator');
+      if (loadingEl) return false;
+    }
     const topGreeting = doc.querySelector('div.greeting, .gemini-intro-title, div[data-test-id="conversation-title"], .chat-history-start');
     if (topGreeting) {
       return true;

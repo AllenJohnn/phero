@@ -74,6 +74,11 @@ export class ClaudeCaptureStrategy {
     if (!metrics.isAtTop) {
       return false;
     }
+    const searchRoot = container instanceof HTMLElement ? container : doc.querySelector('main') || doc.body;
+    if (searchRoot) {
+      const loadingEl = searchRoot.querySelector('svg.animate-spin, [data-testid*="loading"], [data-testid*="spinner"], [aria-busy="true"], [role="progressbar"]');
+      if (loadingEl) return false;
+    }
     const topMarker = doc.querySelector('[data-testid="chat-title"], h1.chat-title, .chat-start-marker, div[data-testid="conversation-header"]');
     if (topMarker) {
       return true;
