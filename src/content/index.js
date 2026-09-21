@@ -43,7 +43,11 @@ async function executeHandoff(currentAdapter, destination) {
     destinationProvider: destination,
     payload
   });
-  return response;
+  return {
+    ...response,
+    isComplete: extraction.isComplete,
+    warning: extraction.warning
+  };
 }
 let currentUnmount = null;
 let currentProviderId = null;
@@ -128,7 +132,9 @@ function attachMessageListener() {
           const res = await executeHandoff(adapter, message.destinationProvider);
           sendResponse({
             success: true,
-            result: res
+            result: res,
+            isComplete: res?.isComplete ?? true,
+            warning: res?.warning
           });
         } catch (err) {
           sendResponse({
