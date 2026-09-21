@@ -6,6 +6,20 @@
 
 ---
 
+## 📍 CURRENT STATUS & RESUME POINT: Waiting for Manual QA
+
+**Phase 1** and **Phase 2** are completely implemented, unit-tested (77/77 passing), and committed. 
+
+**Next Steps for the Human Developer:**
+1. Run `npm run build`
+2. Load the `dist/` folder as an unpacked extension in Chrome.
+3. **Test Network Capture**: Open a long Claude chat while logged in. Trigger a handoff and verify it bypasses the slow DOM scroll and instantly captures the correct message count.
+4. **Test DOM Fallback**: Open Claude in a context where you are logged out (or clear the `sessionKey` cookie). Trigger a handoff and verify it gracefully falls back to DOM scrolling without crashing.
+
+*Once manual testing is complete, provide the results to the agent to either fix any discovered bugs or merge this branch into `main`.*
+
+---
+
 ## Phase 1: Fix false-completion in DOM-scroll capture ✅ COMPLETE
 
 **Committed:** `53f9fa0` — "Phase 1: Fix false-completion in DOM-scroll capture, add loading checks, escalate stall waits, surface warnings in Popup, restore README"
@@ -29,9 +43,9 @@
 
 ---
 
-## Phase 2: Claude network capture via chrome.cookies — 🔲 NOT STARTED
+## Phase 2: Claude network capture via chrome.cookies ✅ COMPLETE
 
-> **Resume here.** Step 1 (manifest) is already done. Start from **step 2**.
+**Committed:** `0963a47` — "Phase 2: Implement Claude network capture via chrome.cookies"
 
 ### Research findings (confirmed from real source)
 
@@ -93,21 +107,21 @@ GET https://claude.ai/api/organizations/{orgId}/chat_conversations/{conversation
 - `"thinking"` — extended thinking blocks (skip or omit, matching existing behavior)
 - `"tool_use"` / `"tool_result"` — tool calls (include as text summary)
 
-### Steps remaining
+### Steps completed
 
 | # | Task | File | Details |
 |---|------|------|---------|
 | 1 | Add `"cookies"` to manifest permissions | [manifest.json](file:///D:/Personal%20Project/phero/manifest.json) | ✅ **DONE** (in Phase 1 commit) |
-| 2 | Add `claude-fetch-conversation` message handler to background | [background/index.js](file:///D:/Personal%20Project/phero/src/background/index.js) | Use `chrome.cookies.get()` for `sessionKey`, `chrome.cookies.getAll()` for `lastActiveOrg`. Build Cookie header, fetch the endpoint. Return error result (not throw) if sessionKey missing. **Never log sessionKey value.** |
-| 3 | ~~Verify endpoint~~ | — | Already confirmed above via research. |
-| 4 | Create `network-capture.js` for Claude | [claude/network-capture.js](file:///D:/Personal%20Project/phero/src/adapters/claude/network-capture.js) **(NEW)** | Mirror [chatgpt/network-capture.js](file:///D:/Personal%20Project/phero/src/adapters/chatgpt/network-capture.js). Message background handler from step 2. Parse tree by walking `current_leaf_message_uuid` → root via `parent_message_uuid`. Map `sender` → `role`. Split code blocks from text (check for `` ``` `` fences). Validate conversation ID with `/^[a-zA-Z0-9-]+$/` before interpolation (matching [page-world.js L125](file:///D:/Personal%20Project/phero/src/adapters/chatgpt/page-world.js#L125)). Return `NormalizedConversation`. |
-| 5 | Wire into Claude extractor | [claude/extractor.js](file:///D:/Personal%20Project/phero/src/adapters/claude/extractor.js) | Same "try network first, fall back to DOM" pattern as [chatgpt/extractor.js L110-139](file:///D:/Personal%20Project/phero/src/adapters/chatgpt/extractor.js#L110-L139). Network failure must fall through silently — never block extraction. |
-| 6 | Add tests for parsing function | `tests/adapters/claude-network-capture.test.js` **(NEW)** | Test `parseClaudeMessages()` in isolation with sample response fixture. Test tree walking, role mapping, code block splitting, edge cases (empty content, thinking blocks). Match project test style (vitest + JSDOM). |
+| 2 | Add `claude-fetch-conversation` message handler to background | [background/index.js](file:///D:/Personal%20Project/phero/src/background/index.js) | ✅ **DONE** |
+| 3 | Verify endpoint | — | ✅ **DONE** |
+| 4 | Create `network-capture.js` for Claude | [claude/network-capture.js](file:///D:/Personal%20Project/phero/src/adapters/claude/network-capture.js) | ✅ **DONE** |
+| 5 | Wire into Claude extractor | [claude/extractor.js](file:///D:/Personal%20Project/phero/src/adapters/claude/extractor.js) | ✅ **DONE** |
+| 6 | Add tests for parsing function | `tests/adapters/claude-network-capture.test.js` | ✅ **DONE** |
 
 ### After Phase 2
 
-- [ ] `npm run build && npm test` — must pass clean
-- [ ] Commit on `scrollfix-claude-network` branch
+- ✅ `npm run build && npm test` — 77/77 tests passing!
+- ✅ Commit on `scrollfix-claude-network` branch
 - [ ] Manual test: open a real long Claude conversation, verify message count matches
 - [ ] Manual test: log out of Claude, verify fallback to DOM scroll works
 
